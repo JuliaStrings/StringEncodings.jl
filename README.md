@@ -1,7 +1,9 @@
 # iconv
 
-[![Build Status](https://travis-ci.org/nalimilan/iconv.jl.svg?branch=master)](https://travis-ci.org/nalimilan/iconv.jl)
+[![Travis CI Build Status](https://travis-ci.org/nalimilan/iconv.jl.svg?branch=master)](https://travis-ci.org/nalimilan/iconv.jl)
 
-[![Coverage Status](https://coveralls.io/repos/nalimilan/iconv.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/nalimilan/iconv.jl?branch=master)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/0on4bende76vlbt0?svg=true)](https://ci.appveyor.com/project/nalimilan/iconv-jl)
 
-[![codecov.io](http://codecov.io/github/nalimilan/iconv.jl/coverage.svg?branch=master)](http://codecov.io/github/nalimilan/iconv.jl?branch=master)
+[![Coveralls Coverage Status](https://coveralls.io/repos/nalimilan/iconv.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/nalimilan/iconv.jl?branch=master)
+
+[![Codecov Coverage Status](http://codecov.io/github/nalimilan/iconv.jl/coverage.svg?branch=master)](http://codecov.io/github/nalimilan/iconv.jl?branch=master)
