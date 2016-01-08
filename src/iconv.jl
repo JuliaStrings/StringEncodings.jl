@@ -39,6 +39,8 @@ type StringEncoder{S<:IO} <: IO
     cd::Ptr{Void}
     inbuf::Vector{UInt8}
     outbuf::Vector{UInt8}
+    inbufptr::Ref{Ptr{UInt8}}
+    outbufptr::Ref{Ptr{UInt8}}
     inbytesleft::Ref{Csize_t}
     outbytesleft::Ref{Csize_t}
 end
@@ -48,25 +50,25 @@ type StringDecoder{S<:IO} <: IO
     cd::Ptr{Void}
     inbuf::Vector{UInt8}
     outbuf::Vector{UInt8}
+    inbufptr::Ref{Ptr{UInt8}}
+    outbufptr::Ref{Ptr{UInt8}}
     inbytesleft::Ref{Csize_t}
     outbytesleft::Ref{Csize_t}
     skip::Int
 end
 
 function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
+                inbufptr::Ref{Ptr{UInt8}}, outbufptr::Ref{Ptr{UInt8}},
                 inbytesleft::Ref{Csize_t}, outbytesleft::Ref{Csize_t})
-    inbuf2_orig = pointer(inbuf, 1)
-    outbuf2_orig = pointer(outbuf, 1)
+    inbufptr[] = pointer(inbuf)
+    outbufptr[] = pointer(outbuf)
 
     inbytesleft_orig = inbytesleft[]
     outbytesleft[] = BUFSIZE
 
-    inbuf2 = Ptr{UInt8}[inbuf2_orig]
-    outbuf2 = Ptr{UInt8}[outbuf2_orig]
-
     ret = ccall((:iconv, :libc), Csize_t,
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
-                cd, pointer(inbuf2, 1), inbytesleft, pointer(outbuf2, 1), outbytesleft)
+                cd, inbufptr, inbytesleft, outbufptr, outbytesleft)
 
     if ret == reinterpret(Csize_t, -1)
         err = errno()
@@ -98,11 +100,11 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
         s.skip = 0
     end
 
-    outbuf2 = Ptr{UInt8}[pointer(s.outbuf, 1)]
+    s.outbufptr[] = pointer(s.outbuf)
     s.outbytesleft[] = BUFSIZE
     ret = ccall((:iconv, :libc), Csize_t,
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
-                s.cd, C_NULL, C_NULL, pointer(outbuf2, 1), s.outbytesleft)
+                s.cd, C_NULL, C_NULL, s.outbufptr, s.outbytesleft)
 
     if ret == reinterpret(Csize_t, -1)
         err = errno()
@@ -134,7 +136,9 @@ function StringEncoder(ostream::IO, to::ASCIIString, from::ASCIIString="UTF-8")
     cd = iconv_open(to, from)
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
-    s = StringEncoder(ostream, cd, inbuf, outbuf, Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE))
+    s = StringEncoder(ostream, cd, inbuf, outbuf,
+                      Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
+                      Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE))
     finalizer(s, close)
     s
 end
@@ -149,7 +153,7 @@ function flush(s::StringEncoder)
     # until more data is written, which will only trigger an error on close().
     s.outbytesleft[] = 0
     while s.outbytesleft[] < BUFSIZE
-        iconv!(s.cd, s.inbuf, s.outbuf, s.inbytesleft, s.outbytesleft)
+        iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
         write(s.ostream, sub(s.outbuf, 1:(BUFSIZE - s.outbytesleft[])))
     end
 
@@ -185,7 +189,9 @@ function StringDecoder(istream::IO, from::ASCIIString, to::ASCIIString="UTF-8")
     cd = iconv_open(to, from)
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
-    s = StringDecoder(istream, cd, inbuf, outbuf, Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE), 0)
+    s = StringDecoder(istream, cd, inbuf, outbuf,
+                      Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
+                      Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE), 0)
     finalizer(s, close)
     s
 end
@@ -204,7 +210,7 @@ function fill_buffer!(s::StringDecoder)
     end
 
     s.inbytesleft[] += readbytes!(s.istream, sub(s.inbuf, (s.inbytesleft[]+1):BUFSIZE))
-    iconv!(s.cd, s.inbuf, s.outbuf, s.inbytesleft, s.outbytesleft)
+    iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
 end
 
 # In order to know whether more data is available, we need to:
