@@ -24,4 +24,4 @@ provides(BuildProcess,
          libiconv,
          os = :Unix)
 
-@BinDeps.install
+@BinDeps.install Dict(:libiconv => :libiconv)
