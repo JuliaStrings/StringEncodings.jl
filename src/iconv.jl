@@ -11,24 +11,17 @@ const E2BIG = 7
 const EINVAL = 22
 const EILSEQ = 84
 
-type IConv
-    p::Ptr{Void}
-end
-
-function iconv_close(cd::IConv)
-    cd.p != C_NULL || return
-    ret = ccall((:iconv_close, :libc), Cint, (Ptr{Void},), cd.p)
-    ret == 0 || error("failed to call iconv_close: error $(errno()) ($(strerror(errno())))")
-    cd.p = C_NULL
-    nothing
+function iconv_close(cd::Ptr{Void})
+    if cd != C_NULL
+        ccall((:iconv_close, :libc), Cint, (Ptr{Void},), cd) == 0 ||
+            error("failed to call iconv_close: error $(errno()) ($(strerror(errno())))")
+    end
 end
 
 function iconv_open(tocode, fromcode)
     p = ccall((:iconv_open, :libc), Ptr{Void}, (Cstring, Cstring), tocode, fromcode)
     if p != Ptr{Void}(-1)
-        obj = IConv(p)
-        finalizer(obj, iconv_close)
-        return obj
+        return p
     elseif errno() == EINVAL
         error("conversion from $fromcode to $tocode not supported by iconv implementation, check that specified encodings are correct")
     else
@@ -43,7 +36,7 @@ const BUFSIZE = 100
 
 type StringEncoder{S<:IO} <: IO
     ostream::S
-    cd::IConv
+    cd::Ptr{Void}
     inbuf::Vector{UInt8}
     outbuf::Vector{UInt8}
     inbytesleft::Ref{Csize_t}
@@ -52,7 +45,7 @@ end
 
 type StringDecoder{S<:IO} <: IO
     istream::S
-    cd::IConv
+    cd::Ptr{Void}
     inbuf::Vector{UInt8}
     outbuf::Vector{UInt8}
     inbytesleft::Ref{Csize_t}
@@ -60,7 +53,7 @@ type StringDecoder{S<:IO} <: IO
     skip::Int
 end
 
-function iconv!(cd::IConv, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
+function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
                 inbytesleft::Ref{Csize_t}, outbytesleft::Ref{Csize_t})
     inbuf2_orig = pointer(inbuf, 1)
     outbuf2_orig = pointer(outbuf, 1)
@@ -73,7 +66,7 @@ function iconv!(cd::IConv, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
 
     ret = ccall((:iconv, :libc), Csize_t,
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
-                cd.p, pointer(inbuf2, 1), inbytesleft, pointer(outbuf2, 1), outbytesleft)
+                cd, pointer(inbuf2, 1), inbytesleft, pointer(outbuf2, 1), outbytesleft)
 
     if ret == reinterpret(Csize_t, -1)
         err = errno()
@@ -99,7 +92,7 @@ end
 # Reset iconv to initial state
 # Returns the number of bytes written into the output buffer, if any
 function iconv_reset!(s::Union{StringEncoder, StringDecoder})
-    s.cd.p != C_NULL || return 0
+    s.cd == C_NULL && return 0
 
     if is(s, StringDecoder)
         s.skip = 0
@@ -109,7 +102,7 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
     s.outbytesleft[] = BUFSIZE
     ret = ccall((:iconv, :libc), Csize_t,
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
-                s.cd.p, C_NULL, C_NULL, pointer(outbuf2, 1), s.outbytesleft)
+                s.cd, C_NULL, C_NULL, pointer(outbuf2, 1), s.outbytesleft)
 
     if ret == reinterpret(Csize_t, -1)
         err = errno()
@@ -149,7 +142,7 @@ end
 # Flush input buffer and convert it into output buffer
 # Returns the number of bytes written to output buffer
 function flush(s::StringEncoder)
-    s.cd.p != C_NULL || return s
+    s.cd == C_NULL && return s
 
     # We need to retry several times in case output buffer is too small to convert
     # all of the input. Even so, some incomplete sequences may remain in the input
@@ -164,10 +157,11 @@ function flush(s::StringEncoder)
 end
 
 function close(s::StringEncoder)
-    s.cd.p != C_NULL || return s
+    s.cd == C_NULL && return s
     flush(s)
     iconv_reset!(s)
-    finalize(s.cd)
+    iconv_close(s.cd)
+    s.cd = C_NULL
     # flush() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || error("iconv error: incomplete byte sequence at end of input")
 end
@@ -199,7 +193,7 @@ end
 # Fill input buffer and convert it into output buffer
 # Returns the number of bytes written to output buffer
 function fill_buffer!(s::StringDecoder)
-    s.cd.p != C_NULL || return 0
+    s.cd == C_NULL && return 0
 
     s.skip = 0
 
@@ -225,8 +219,9 @@ function eof(s::StringDecoder)
 end
 
 function close(s::StringDecoder)
-    s.cd.p != C_NULL || return s
-    finalize(s.cd)
+    s.cd == C_NULL && return s
+    iconv_close(s.cd)
+    s.cd = C_NULL
     # fill_buffer!() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || error("iconv error: incomplete byte sequence at end of input")
 end
