@@ -5,6 +5,9 @@ import Base: close, eof, flush, read, readall, write
 import Base.Libc: errno, strerror
 export StringEncoder, StringDecoder, encode, decode
 
+include("../deps/deps.jl")
+
+
 ## iconv wrappers
 
 const E2BIG = 7
@@ -13,13 +16,13 @@ const EILSEQ = 84
 
 function iconv_close(cd::Ptr{Void})
     if cd != C_NULL
-        ccall((:iconv_close, :libc), Cint, (Ptr{Void},), cd) == 0 ||
+        ccall((:iconv_close, libiconv_path), Cint, (Ptr{Void},), cd) == 0 ||
             error("failed to call iconv_close: error $(errno()) ($(strerror(errno())))")
     end
 end
 
 function iconv_open(tocode, fromcode)
-    p = ccall((:iconv_open, :libc), Ptr{Void}, (Cstring, Cstring), tocode, fromcode)
+    p = ccall((:iconv_open, libiconv_path), Ptr{Void}, (Cstring, Cstring), tocode, fromcode)
     if p != Ptr{Void}(-1)
         return p
     elseif errno() == EINVAL
@@ -66,7 +69,7 @@ function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
     inbytesleft_orig = inbytesleft[]
     outbytesleft[] = BUFSIZE
 
-    ret = ccall((:iconv, :libc), Csize_t,
+    ret = ccall((:iconv, libiconv_path), Csize_t,
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 cd, inbufptr, inbytesleft, outbufptr, outbytesleft)
 
@@ -98,7 +101,7 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
 
     s.outbufptr[] = pointer(s.outbuf)
     s.outbytesleft[] = BUFSIZE
-    ret = ccall((:iconv, :libc), Csize_t,
+    ret = ccall((:iconv, libiconv_path), Csize_t,
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 s.cd, C_NULL, C_NULL, s.outbufptr, s.outbytesleft)
 
