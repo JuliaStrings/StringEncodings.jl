@@ -68,3 +68,6 @@ mktemp() do p, io
     close(io)
     @test readall(p, "CP1252") == s
 end
+
+@test_throws ErrorException p = StringEncoder(IOBuffer(), "nonexistent_encoding")
+@test_throws ErrorException p = StringDecoder(IOBuffer(), "nonexistent_encoding")
