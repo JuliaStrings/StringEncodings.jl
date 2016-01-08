@@ -96,10 +96,6 @@ end
 function iconv_reset!(s::Union{StringEncoder, StringDecoder})
     s.cd == C_NULL && return 0
 
-    if is(s, StringDecoder)
-        s.skip = 0
-    end
-
     s.outbufptr[] = pointer(s.outbuf)
     s.outbytesleft[] = BUFSIZE
     ret = ccall((:iconv, :libc), Csize_t,
