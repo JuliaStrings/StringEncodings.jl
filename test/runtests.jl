@@ -1,4 +1,5 @@
 using Base.Test
+using iconv
 
 for s in ("", "a", "café crème",
           "a"^(iconv.BUFSIZE-1) * "€ with an incomplete codepoint between two input buffer fills",
