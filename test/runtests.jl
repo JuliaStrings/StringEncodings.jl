@@ -15,7 +15,7 @@ end
 
 # Test a few non-Unicode encodings
 for (s, enc) in (("noël", "ISO-8859-1"), ("noël €", "ISO-8859-15", "CP1252"),
-                   ("Код Обмена Информацией, 8 бит", "KOI8"), ("国家标准", "GB18030"))
+                   ("Код Обмена Информацией, 8 бит", "KOI8-R"), ("国家标准", "GB18030"))
     @test decode(encode(s, enc), enc) == s
 end
 
