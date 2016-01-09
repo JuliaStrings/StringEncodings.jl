@@ -5,7 +5,8 @@ for s in ("", "a", "café crème",
           "a"^(iconv.BUFSIZE-1) * "€ with an incomplete codepoint between two input buffer fills",
           "a string € チャネルパートナーの選択")
     # Test round-trip to Unicode formats, checking against pure-Julia implementation
-    for (T, enc) in ((UTF8String, "UTF-8"), (UTF16String, "UTF-16"), (UTF32String, "UTF-32"))
+    for T in (UTF8String, UTF16String, UTF32String)
+        enc = iconv.encoding_string(T)
         a = reinterpret(UInt8, T(s).data)
         @test decode(a, enc) == s
         @test decode(encode(s, enc), enc) == s
@@ -21,11 +22,11 @@ end
 # Test that attempt to close stream in the middle of incomplete sequence throws
 # TODO: use more specific errors
 let s = "a string € チャネルパートナーの選択"
-    p = StringEncoder(IOBuffer(), "UTF-16")
+    p = StringEncoder(IOBuffer(), "UTF-16LE")
     write(p, s.data[1:10])
     @test_throws ErrorException close(p)
 
-    p = StringDecoder(IOBuffer(encode(s, "UTF-16")[1:21]), "UTF-16")
+    p = StringDecoder(IOBuffer(encode(s, "UTF-16LE")[1:19]), "UTF-16LE")
     @test readall(p) == s[1:9]
     @test_throws ErrorException close(p)
 
