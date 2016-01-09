@@ -245,8 +245,8 @@ end
 
 encoding_string(::Type{ASCIIString}) = "ASCII"
 encoding_string(::Type{UTF8String}) = "UTF-8"
-encoding_string(::Type{UTF16String}) = "UTF-16"
-encoding_string(::Type{UTF32String}) = "UTF-32"
+encoding_string(::Type{UTF16String}) = "UTF-16LE"
+encoding_string(::Type{UTF32String}) = "UTF-32LE"
 
 """
     decode(a::Vector{UInt8}, enc::ASCIIString)
