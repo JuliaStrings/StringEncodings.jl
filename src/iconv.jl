@@ -2,7 +2,7 @@
 
 module iconv
 import Base: close, eof, flush, read, readall, write
-import Base.Libc: errno, strerror
+import Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 export StringEncoder, StringDecoder, encode, decode
 
 depsjl = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
@@ -10,10 +10,6 @@ isfile(depsjl) ? include(depsjl) : error("libiconv not properly installed. Pleas
 
 
 ## iconv wrappers
-
-const E2BIG = 7
-const EINVAL = 22
-const EILSEQ = 84
 
 function iconv_close(cd::Ptr{Void})
     if cd != C_NULL
