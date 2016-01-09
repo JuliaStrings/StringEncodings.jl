@@ -16,7 +16,10 @@ end
     provides(Homebrew.HB, "libiconv", libiconv, os = :Darwin)
 end
 
-provides(Sources, URI("http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.gz"), libiconv)
+provides(Sources,
+         URI("http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.gz"),
+         libiconv,
+         SHA="72b24ded17d687193c3366d0ebe7cde1e6b18f0df8c55438ac95be39e8a30613")
 
 provides(BuildProcess,
          Autotools(libtarget = "lib/libiconv.la",
