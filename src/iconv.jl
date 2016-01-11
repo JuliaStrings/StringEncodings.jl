@@ -25,7 +25,7 @@ function iconv_open(tocode, fromcode)
     elseif errno() == EINVAL
         error("conversion from $fromcode to $tocode not supported by iconv implementation, check that specified encodings are correct")
     else
-       error("iconv_open error $(errno()): $(strerror(errno()))")
+        error("iconv_open error $(errno()): $(strerror(errno()))")
     end
 end
 
@@ -248,7 +248,7 @@ end
 ## Functions to encode/decode strings
 
 encoding_string(::Type{ASCIIString}) = "ASCII"
-encoding_string(::Type{UTF8String}) = "UTF-8"
+encoding_string(::Type{UTF8String})  = "UTF-8"
 encoding_string(::Type{UTF16String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-16LE" : "UTF-16BE"
 encoding_string(::Type{UTF32String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-32LE" : "UTF-32BE"
 
