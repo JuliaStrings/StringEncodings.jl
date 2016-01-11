@@ -21,7 +21,7 @@ end
 
 # Test that attempt to close stream in the middle of incomplete sequence throws
 # TODO: use more specific errors
-let s = "a string € チャネルパートナーの選択"
+let s = "a string チャネルパートナーの選択"
     p = StringEncoder(IOBuffer(), "UTF-16LE")
     write(p, s.data[1:10])
     @test_throws ErrorException close(p)
@@ -32,10 +32,10 @@ let s = "a string € チャネルパートナーの選択"
 
     # Test stateful encoding, which output some bytes on final reset
     # with strings containing different scripts
-    x = encode(s, "ISO-2022-JP-3")
-    @test decode(x, "ISO-2022-JP-3") == s
+    x = encode(s, "ISO-2022-JP")
+    @test decode(x, "ISO-2022-JP") == s
 
-    p = StringDecoder(IOBuffer(x), "ISO-2022-JP-3", "UTF-8")
+    p = StringDecoder(IOBuffer(x), "ISO-2022-JP", "UTF-8")
     # Test that closed pipe behaves correctly
     close(p)
     @test eof(p)
