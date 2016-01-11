@@ -241,8 +241,8 @@ end
 
 encoding_string(::Type{ASCIIString}) = "ASCII"
 encoding_string(::Type{UTF8String}) = "UTF-8"
-encoding_string(::Type{UTF16String}) = "UTF-16LE"
-encoding_string(::Type{UTF32String}) = "UTF-32LE"
+encoding_string(::Type{UTF16String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-16LE" : "UTF-16BE"
+encoding_string(::Type{UTF32String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-32LE" : "UTF-32BE"
 
 """
     decode(a::Vector{UInt8}, enc::ASCIIString)
