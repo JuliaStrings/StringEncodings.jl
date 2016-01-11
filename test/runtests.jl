@@ -53,6 +53,8 @@ catch err
         "iconv error: byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
 end
 
+@show decode("qwertyé€".data, "ASCII")
+
 @test_throws ErrorException decode("qwertyé€".data, "ASCII")
 try
     decode("qwertyé€".data, "ASCII")
