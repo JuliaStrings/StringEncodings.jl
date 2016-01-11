@@ -53,14 +53,18 @@ catch err
         "iconv error: byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
 end
 
-@test_throws ErrorException decode("qwertyé€".data, "ASCII")
-try
-    decode("qwertyé€".data, "ASCII")
-catch err
-     io = IOBuffer()
-     showerror(io, err)
-     @test takebuf_string(io) ==
-        "iconv error: byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
+# win_iconv currently does not throw an error on bytes >= 0x80 in ASCII sources
+# https://github.com/win-iconv/win-iconv/pull/26
+if OS_NAME != :Windows
+    @test_throws ErrorException decode("qwertyé€".data, "ASCII")
+    try
+        decode("qwertyé€".data, "ASCII")
+    catch err
+         io = IOBuffer()
+         showerror(io, err)
+         @test takebuf_string(io) ==
+             "iconv error: byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
+    end
 end
 
 mktemp() do p, io
