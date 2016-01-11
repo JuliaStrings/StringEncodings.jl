@@ -79,7 +79,7 @@ function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 cd, inbufptr, inbytesleft, outbufptr, outbytesleft)
 
-    if ret == reinterpret(Csize_t, -1)
+    if ret == -1 % Csize_t
         err = errno()
 
         # Should never happen unless a very small buffer is used
@@ -111,7 +111,7 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 s.cd, C_NULL, C_NULL, s.outbufptr, s.outbytesleft)
 
-    if ret == reinterpret(Csize_t, -1)
+    if ret == -1 % Csize_t
         err = errno()
         if err == EINVAL
             error("iconv error: incomplete byte sequence at end of input")
