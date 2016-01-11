@@ -25,7 +25,7 @@ function iconv_open(tocode, fromcode)
     elseif errno() == EINVAL
         error("conversion from $fromcode to $tocode not supported by iconv implementation, check that specified encodings are correct")
     else
-       error("iconv_open error $(errno()): $(strerror(errno()))")
+        error("iconv_open error $(errno()): $(strerror(errno()))")
     end
 end
 
@@ -57,6 +57,15 @@ type StringDecoder{S<:IO} <: IO
     skip::Int
 end
 
+# This is called during GC, just make sure C memory is returned, don't throw errors
+function finalize(s::Union{StringEncoder, StringDecoder})
+    if s.cd != C_NULL
+        iconv_close(s.cd)
+        s.cd = C_NULL
+    end
+    nothing
+end
+
 function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
                 inbufptr::Ref{Ptr{UInt8}}, outbufptr::Ref{Ptr{UInt8}},
                 inbytesleft::Ref{Csize_t}, outbytesleft::Ref{Csize_t})
@@ -70,7 +79,7 @@ function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 cd, inbufptr, inbytesleft, outbufptr, outbytesleft)
 
-    if ret == reinterpret(Csize_t, -1)
+    if ret == -1 % Csize_t
         err = errno()
 
         # Should never happen unless a very small buffer is used
@@ -102,7 +111,7 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 s.cd, C_NULL, C_NULL, s.outbufptr, s.outbytesleft)
 
-    if ret == reinterpret(Csize_t, -1)
+    if ret == -1 % Csize_t
         err = errno()
         if err == EINVAL
             error("iconv error: incomplete byte sequence at end of input")
@@ -135,7 +144,7 @@ function StringEncoder(ostream::IO, to::ASCIIString, from::ASCIIString="UTF-8")
     s = StringEncoder(ostream, cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE))
-    finalizer(s, close)
+    finalizer(s, finalize)
     s
 end
 
@@ -157,11 +166,10 @@ function flush(s::StringEncoder)
 end
 
 function close(s::StringEncoder)
-    s.cd == C_NULL && return s
     flush(s)
     iconv_reset!(s)
-    iconv_close(s.cd)
-    s.cd = C_NULL
+    # Make sure C memory/resources are returned
+    finalize(s)
     # flush() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || error("iconv error: incomplete byte sequence at end of input")
 end
@@ -188,7 +196,7 @@ function StringDecoder(istream::IO, from::ASCIIString, to::ASCIIString="UTF-8")
     s = StringDecoder(istream, cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE), 0)
-    finalizer(s, close)
+    finalizer(s, finalize)
     s
 end
 
@@ -221,10 +229,10 @@ function eof(s::StringDecoder)
 end
 
 function close(s::StringDecoder)
-    s.cd == C_NULL && return s
-    iconv_close(s.cd)
-    s.cd = C_NULL
-    # fill_buffer!() wasn't able to empty input buffer, which cannot happen with correct data
+    iconv_reset!(s)
+    # Make sure C memory/resources are returned
+    finalize(s)
+    # iconv_reset!() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || error("iconv error: incomplete byte sequence at end of input")
 end
 
@@ -240,9 +248,9 @@ end
 ## Functions to encode/decode strings
 
 encoding_string(::Type{ASCIIString}) = "ASCII"
-encoding_string(::Type{UTF8String}) = "UTF-8"
-encoding_string(::Type{UTF16String}) = "UTF-16LE"
-encoding_string(::Type{UTF32String}) = "UTF-32LE"
+encoding_string(::Type{UTF8String})  = "UTF-8"
+encoding_string(::Type{UTF16String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-16LE" : "UTF-16BE"
+encoding_string(::Type{UTF32String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-32LE" : "UTF-32BE"
 
 """
     decode(a::Vector{UInt8}, enc::ASCIIString)
