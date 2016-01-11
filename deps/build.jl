@@ -8,7 +8,7 @@ libiconv = library_dependency("libiconv", aliases = ["libc", "iconv"],
 
 @windows_only begin
     using WinRPM
-    provides(WinRPM.RPM, "win_iconv", libiconv, os = :Windows)
+    provides(WinRPM.RPM, "win_iconv-dll", libiconv, os = :Windows)
 end
 
 @osx_only begin
