@@ -57,6 +57,15 @@ type StringDecoder{S<:IO} <: IO
     skip::Int
 end
 
+# This is called during GC, just make sure C memory is returned, don't throw errors
+function finalize(s::Union{StringEncoder, StringDecoder})
+    if s.cd != C_NULL
+        iconv_close(s.cd)
+        s.cd = C_NULL
+    end
+    nothing
+end
+
 function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
                 inbufptr::Ref{Ptr{UInt8}}, outbufptr::Ref{Ptr{UInt8}},
                 inbytesleft::Ref{Csize_t}, outbytesleft::Ref{Csize_t})
@@ -135,7 +144,7 @@ function StringEncoder(ostream::IO, to::ASCIIString, from::ASCIIString="UTF-8")
     s = StringEncoder(ostream, cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE))
-    finalizer(s, close)
+    finalizer(s, finalize)
     s
 end
 
@@ -157,11 +166,10 @@ function flush(s::StringEncoder)
 end
 
 function close(s::StringEncoder)
-    s.cd == C_NULL && return s
     flush(s)
     iconv_reset!(s)
-    iconv_close(s.cd)
-    s.cd = C_NULL
+    # Make sure C memory/resources are returned
+    finalize(s)
     # flush() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || error("iconv error: incomplete byte sequence at end of input")
 end
@@ -188,7 +196,7 @@ function StringDecoder(istream::IO, from::ASCIIString, to::ASCIIString="UTF-8")
     s = StringDecoder(istream, cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE), 0)
-    finalizer(s, close)
+    finalizer(s, finalize)
     s
 end
 
@@ -221,10 +229,10 @@ function eof(s::StringDecoder)
 end
 
 function close(s::StringDecoder)
-    s.cd == C_NULL && return s
-    iconv_close(s.cd)
-    s.cd = C_NULL
-    # fill_buffer!() wasn't able to empty input buffer, which cannot happen with correct data
+    iconv_reset!(s)
+    # Make sure C memory/resources are returned
+    finalize(s)
+    # iconv_reset!() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || error("iconv error: incomplete byte sequence at end of input")
 end
 
