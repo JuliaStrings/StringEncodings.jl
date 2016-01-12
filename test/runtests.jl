@@ -69,6 +69,18 @@ if OS_NAME != :Windows
     end
 end
 
+let x = encode("ÄÆä", "ISO-8859-1")
+    @test_throws ErrorException decode(x, "UTF-8")
+    try
+        decode(x, "UTF-8")
+    catch err
+         io = IOBuffer()
+         showerror(io, err)
+         @test takebuf_string(io) ==
+             "iconv error: byte sequence 0xc4c6e4 is invalid in source encoding or cannot be represented in target encoding"
+    end
+end
+
 mktemp() do p, io
     s = "café crème"
     write(io, encode(s, "CP1252"))
