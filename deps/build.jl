@@ -11,11 +11,6 @@ libiconv = library_dependency("libiconv", aliases = ["libc", "iconv"],
     provides(WinRPM.RPM, "win_iconv-dll", libiconv, os = :Windows)
 end
 
-@osx_only begin
-    using Homebrew
-    provides(Homebrew.HB, "libiconv", libiconv, os = :Darwin)
-end
-
 provides(Sources,
          URI("http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.gz"),
          libiconv,
