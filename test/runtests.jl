@@ -61,9 +61,9 @@ end
 # win_iconv currently does not throw an error on bytes >= 0x80 in ASCII sources
 # https://github.com/win-iconv/win-iconv/pull/26
 if OS_NAME != :Windows
-    @test_throws ErrorException decode("qwertyé€".data, "ASCII")
+    @test_throws ErrorException decode(b"qwertyé€", "ASCII")
     try
-        decode("qwertyé€".data, "ASCII")
+        decode(b"qwertyé€", "ASCII")
     catch err
          io = IOBuffer()
          showerror(io, err)
