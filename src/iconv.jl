@@ -266,15 +266,7 @@ in the input data without raising an error.
 function decode(a::Vector{UInt8}, enc::ASCIIString)
     b = IOBuffer(a)
     try
-        d = readbytes(StringDecoder(b, enc, "UTF-8"))
-        # Skip final null bytes if needed
-        # FIXME: find a better solution?
-        i = length(d)
-        while i >= 1
-            d[i] != 0 && break
-            i -= 1
-        end
-        UTF8String(d[1:i])
+        UTF8String(readbytes(StringDecoder(b, enc, "UTF-8")))
     finally
         close(b)
     end

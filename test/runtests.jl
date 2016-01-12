@@ -1,13 +1,16 @@
 using Base.Test
 using iconv
 
-for s in ("", "a", "café crème",
+for s in ("", "\0", "a", "café crème",
           "a"^(iconv.BUFSIZE-1) * "€ with an incomplete codepoint between two input buffer fills",
-          "a string € チャネルパートナーの選択")
+          "a string € チャネルパートナーの選択",
+          "a string \0€ チャネルパ\0ー\0トナーの選択 with embedded and trailing nuls\0")
     # Test round-trip to Unicode formats, checking against pure-Julia implementation
-    for T in (UTF8String, UTF16String, UTF32String)
+    for (T, nullen) in ((UTF8String, 0), (UTF16String, 2), (UTF32String, 4))
         enc = iconv.encoding_string(T)
         a = reinterpret(UInt8, T(s).data)
+        # Adjust for explicit \0 only for .data on UTF16String/UTF32String
+        a = a[1:end - nullen]
         @test decode(a, enc) == s
         @test decode(encode(s, enc), enc) == s
     end
@@ -58,9 +61,9 @@ end
 # win_iconv currently does not throw an error on bytes >= 0x80 in ASCII sources
 # https://github.com/win-iconv/win-iconv/pull/26
 if OS_NAME != :Windows
-    @test_throws ErrorException decode("qwertyé€".data, "ASCII")
+    @test_throws ErrorException decode(b"qwertyé€", "ASCII")
     try
-        decode("qwertyé€".data, "ASCII")
+        decode(b"qwertyé€", "ASCII")
     catch err
          io = IOBuffer()
          showerror(io, err)
