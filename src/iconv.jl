@@ -188,6 +188,9 @@ end
 
 Returns a new read-only I/O stream, which converts text in the encoding `from`
 read from `istream` into text in the encoding `to`.
+
+Note that some implementations (notably the Windows one) may accept invalid sequences
+in the input data without raising an error.
 """
 function StringDecoder(istream::IO, from::ASCIIString, to::ASCIIString="UTF-8")
     cd = iconv_open(to, from)
@@ -256,6 +259,9 @@ encoding_string(::Type{UTF32String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-32LE" :
     decode(a::Vector{UInt8}, enc::ASCIIString)
 
 Convert an array of bytes `a` representing text in encoding `enc` to a string.
+
+Note that some implementations (notably the Windows one) may accept invalid sequences
+in the input data without raising an error.
 """
 function decode(a::Vector{UInt8}, enc::ASCIIString)
     b = IOBuffer(a)
