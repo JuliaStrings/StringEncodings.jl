@@ -1,9 +1,52 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
 module iconv
-import Base: close, eof, flush, read, readall, write
+import Base: close, eof, flush, read, readall, write, show
 import Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 export StringEncoder, StringDecoder, encode, decode
+export StringEncodingError, OutputBufferError, IConvError
+export InvalidEncodingError, InvalidSequenceError, IncompleteSequenceError
+
+
+abstract StringEncodingError
+
+# Specified encodings or the combination are not supported by iconv
+type InvalidEncodingError <: StringEncodingError
+    args::Tuple{ASCIIString, ASCIIString}
+end
+InvalidEncodingError(from, to) = InvalidEncodingError((from, to))
+message(::Type{InvalidEncodingError}) = "Conversion from <<1>> to <<2>> not supported by iconv implementation, check that specified encodings are correct"
+
+# Encountered invalid byte sequence
+type InvalidSequenceError <: StringEncodingError
+    args::Tuple{ASCIIString}
+end
+InvalidSequenceError(seq::Vector{UInt8}) = InvalidSequenceError((bytes2hex(seq),))
+message(::Type{InvalidSequenceError}) = "Byte sequence 0x<<1>> is invalid in source encoding or cannot be represented in target encoding"
+
+type IConvError <: StringEncodingError
+    args::Tuple{ASCIIString, Int, ASCIIString}
+end
+IConvError(func) = IConvError((func, errno(), strerror(errno())))
+message(::Type{IConvError}) = "<<1>>: <<2>> (<<3>>)"
+
+# Input ended with incomplete byte sequence
+type IncompleteSequenceError <: StringEncodingError ; end
+message(::Type{IncompleteSequenceError}) = "Incomplete byte sequence at end of input"
+
+type OutputBufferError <: StringEncodingError ; end
+message(::Type{OutputBufferError}) = "Ran out of space in the output buffer"
+
+function show(io::IO, exc::StringEncodingError)
+    str = message(typeof(exc))
+    for i = 1:length(exc.args)
+        str = replace(str, "<<$i>>", exc.args[i])
+    end
+    print(io, str)
+end
+
+show{T<:Union{IncompleteSequenceError,OutputBufferError}}(io::IO, exc::T) =
+    print(io, message(T))
 
 depsjl = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
 isfile(depsjl) ? include(depsjl) : error("libiconv not properly installed. Please run\nPkg.build(\"iconv\")")
@@ -14,7 +57,7 @@ isfile(depsjl) ? include(depsjl) : error("libiconv not properly installed. Pleas
 function iconv_close(cd::Ptr{Void})
     if cd != C_NULL
         ccall((:iconv_close, libiconv), Cint, (Ptr{Void},), cd) == 0 ||
-            error("failed to call iconv_close: error $(errno()) ($(strerror(errno())))")
+            throw(IConvError("iconv_close"))
     end
 end
 
@@ -23,9 +66,9 @@ function iconv_open(tocode, fromcode)
     if p != Ptr{Void}(-1)
         return p
     elseif errno() == EINVAL
-        error("conversion from $fromcode to $tocode not supported by iconv implementation, check that specified encodings are correct")
+        throw(InvalidEncodingError(fromcode, tocode))
     else
-        error("iconv_open error $(errno()): $(strerror(errno()))")
+        throw(IConvError("iconv_open"))
     end
 end
 
@@ -84,16 +127,16 @@ function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
 
         # Should never happen unless a very small buffer is used
         if err == E2BIG && outbytesleft[] == BUFSIZE
-            error("iconv error: ran out of space in the output buffer")
+            throw(OutputBufferError())
         # Output buffer is full, or sequence is incomplete:
         # copy remaining bytes to the start of the input buffer for next time
         elseif err == E2BIG || err == EINVAL
             copy!(inbuf, 1, inbuf, inbytesleft_orig-inbytesleft[]+1, inbytesleft[])
         elseif err == EILSEQ
-            b = inbuf[(inbytesleft_orig-inbytesleft[]+1):inbytesleft_orig]
-            error("iconv error: byte sequence 0x$(bytes2hex(b)) is invalid in source encoding or cannot be represented in target encoding")
+            seq = inbuf[(inbytesleft_orig-inbytesleft[]+1):inbytesleft_orig]
+            throw(InvalidSequenceError(seq))
         else
-            error("iconv error $(errno()): $(strerror(errno()))")
+            throw(IConvError("iconv"))
         end
     end
 
@@ -114,13 +157,11 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
     if ret == -1 % Csize_t
         err = errno()
         if err == EINVAL
-            error("iconv error: incomplete byte sequence at end of input")
+            throw(IncompleteSequenceError())
         elseif err == E2BIG
-            error("iconv error: ran out of space in the output buffer")
-        elseif err == EILSEQ
-            error("iconv error: invalid byte sequence in input")
+            throw(OutputBufferError())
         else
-            error("iconv error $(errno()): $(strerror(errno()))")
+            throw(IConvError("iconv"))
         end
     end
 
@@ -171,7 +212,7 @@ function close(s::StringEncoder)
     # Make sure C memory/resources are returned
     finalize(s)
     # flush() wasn't able to empty input buffer, which cannot happen with correct data
-    s.inbytesleft[] == 0 || error("iconv error: incomplete byte sequence at end of input")
+    s.inbytesleft[] == 0 || throw(IncompleteSequenceError())
 end
 
 function write(s::StringEncoder, x::UInt8)
@@ -236,7 +277,7 @@ function close(s::StringDecoder)
     # Make sure C memory/resources are returned
     finalize(s)
     # iconv_reset!() wasn't able to empty input buffer, which cannot happen with correct data
-    s.inbytesleft[] == 0 || error("iconv error: incomplete byte sequence at end of input")
+    s.inbytesleft[] == 0 || throw(IncompleteSequenceError())
 end
 
 function read(s::StringDecoder, ::Type{UInt8})
