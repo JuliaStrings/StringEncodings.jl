@@ -106,4 +106,23 @@ end
 @test_throws InvalidEncodingError p = StringEncoder(IOBuffer(), "nonexistent_encoding")
 @test_throws InvalidEncodingError p = StringDecoder(IOBuffer(), "nonexistent_encoding")
 
+try
+    p = StringEncoder(IOBuffer(), "nonexistent_encoding")
+catch err
+    @test isa(err, InvalidEncodingError)
+    io = IOBuffer()
+    showerror(io, err)
+    @test takebuf_string(io) ==
+        "Conversion from UTF-8 to nonexistent_encoding not supported by iconv implementation, check that specified encodings are correct"
+end
+try
+    p = StringDecoder(IOBuffer(), "nonexistent_encoding")
+catch err
+    @test isa(err, InvalidEncodingError)
+    io = IOBuffer()
+    showerror(io, err)
+    @test takebuf_string(io) ==
+        "Conversion from nonexistent_encoding to UTF-8 not supported by iconv implementation, check that specified encodings are correct"
+end
+
 nothing
