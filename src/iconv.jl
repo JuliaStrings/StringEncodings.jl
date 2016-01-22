@@ -1,6 +1,6 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
-module iconv
+module StringEncodings
 import Base: close, eof, flush, read, readall, write, show
 import Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 export StringEncoder, StringDecoder, encode, decode
@@ -49,7 +49,7 @@ show{T<:Union{IncompleteSequenceError,OutputBufferError}}(io::IO, exc::T) =
     print(io, message(T))
 
 depsjl = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
-isfile(depsjl) ? include(depsjl) : error("libiconv not properly installed. Please run\nPkg.build(\"iconv\")")
+isfile(depsjl) ? include(depsjl) : error("libiconv not properly installed. Please run\nPkg.build(\"StringEncodings\")")
 
 
 ## iconv wrappers

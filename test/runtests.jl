@@ -1,13 +1,13 @@
 using Base.Test
-using iconv
+using StringEncodings
 
 for s in ("", "\0", "a", "café crème",
-          "a"^(iconv.BUFSIZE-1) * "€ with an incomplete codepoint between two input buffer fills",
+          "a"^(StringEncodings.BUFSIZE-1) * "€ with an incomplete codepoint between two input buffer fills",
           "a string € チャネルパートナーの選択",
           "a string \0€ チャネルパ\0ー\0トナーの選択 with embedded and trailing nuls\0")
     # Test round-trip to Unicode formats, checking against pure-Julia implementation
     for (T, nullen) in ((UTF8String, 0), (UTF16String, 2), (UTF32String, 4))
-        enc = iconv.encoding_string(T)
+        enc = StringEncodings.encoding_string(T)
         a = reinterpret(UInt8, T(s).data)
         # Adjust for explicit \0 only for .data on UTF16String/UTF32String
         a = a[1:end - nullen]
