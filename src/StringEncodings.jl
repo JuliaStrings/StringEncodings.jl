@@ -28,7 +28,7 @@ message(::Type{InvalidSequenceError}) = "Byte sequence 0x<<1>> is invalid in sou
 type IConvError <: StringEncodingError
     args::Tuple{ASCIIString, Int, ASCIIString}
 end
-IConvError(func) = IConvError((func, errno(), strerror(errno())))
+IConvError(func::ASCIIString) = IConvError((func, errno(), strerror(errno())))
 message(::Type{IConvError}) = "<<1>>: <<2>> (<<3>>)"
 
 # Input ended with incomplete byte sequence
