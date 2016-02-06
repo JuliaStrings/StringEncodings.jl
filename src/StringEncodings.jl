@@ -298,21 +298,24 @@ encoding_string(::Type{UTF16String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-16LE" :
 encoding_string(::Type{UTF32String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-32LE" : "UTF-32BE"
 
 """
-    decode(a::Vector{UInt8}, enc::ASCIIString)
+    decode([T,] a::Vector{UInt8}, enc::ASCIIString)
 
-Convert an array of bytes `a` representing text in encoding `enc` to a string.
+Convert an array of bytes `a` representing text in encoding `enc` to a string of type `T`.
+By default, a `UTF8String` is returned.
 
 Note that some implementations (notably the Windows one) may accept invalid sequences
 in the input data without raising an error.
 """
-function decode(a::Vector{UInt8}, enc::ASCIIString)
+function decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::ASCIIString)
     b = IOBuffer(a)
     try
-        UTF8String(readbytes(StringDecoder(b, enc, "UTF-8")))
+        T(readbytes(StringDecoder(b, enc, encoding_string(T))))
     finally
         close(b)
     end
 end
+
+decode(a::Vector{UInt8}, enc::ASCIIString) = decode(UTF8String, a, enc)
 
 """
     encode(s::AbstractString, enc::ASCIIString)

@@ -12,6 +12,8 @@ for s in ("", "\0", "a", "café crème",
         # Adjust for explicit \0 only for .data on UTF16String/UTF32String
         a = a[1:end - nullen]
         @test decode(a, enc) == s
+        @test decode(UTF16String, a, enc) == s
+        @test decode(UTF32String, a, enc) == s
         @test decode(encode(s, enc), enc) == s
     end
 end
