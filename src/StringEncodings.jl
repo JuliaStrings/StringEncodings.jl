@@ -288,19 +288,19 @@ end
 
 ## Convenience I/O functions
 if isdefined(Base, :readstring)
-    """
+    @doc """
         readstring(stream or filename, enc::ASCIIString)
 
     Read the entire contents of an I/O stream or a file in encoding `enc` as a string.
-    """
+    """ ->
     Base.readstring(s::IO, enc::ASCIIString) = readstring(StringDecoder(s, enc))
     Base.readstring(filename::AbstractString, enc::ASCIIString) = open(io->readstring(io, enc), filename)
 else # Compatibility with Julia 0.4
-    """
+    @doc """
         readall(stream or filename, enc::ASCIIString)
 
     Read the entire contents of an I/O stream or a file in encoding `enc` as a string.
-    """
+    """ ->
     Base.readall(s::IO, enc::ASCIIString) = readall(StringDecoder(s, enc))
     Base.readall(filename::AbstractString, enc::ASCIIString) = open(io->readall(io, enc), filename)
 end
