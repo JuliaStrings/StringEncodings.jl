@@ -127,6 +127,19 @@ catch err
         "Conversion from nonexistent_encoding to UTF-8 not supported by iconv implementation, check that specified encodings are correct"
 end
 
+if !isdefined(Base, :readstring)
+    readstring = readall
+end
+
+mktemp() do path, io
+    s = "a string \0チャネルパ\0ー\0トナーの選択 with embedded and trailing nuls\0"
+    write(io, encode(s, "ISO-2022-JP"))
+    close(io)
+
+    @test readstring(path, "ISO-2022-JP") == s
+    @test open(io->readstring(io, "ISO-2022-JP"), path) == s
+end
+
 encodings_list = encodings()
 @test "ASCII" in encodings_list
 @test "UTF-8" in encodings_list

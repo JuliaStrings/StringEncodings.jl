@@ -285,8 +285,24 @@ function read(s::StringDecoder, ::Type{UInt8})
     eof(s) ? throw(EOFError()) : s.outbuf[s.skip+=1]
 end
 
-function readall(filename::AbstractString, encoding::ASCIIString)
-    open(s -> readall(StringDecoder(s, encoding)), filename)
+
+## Convenience I/O functions
+if isdefined(Base, :readstring)
+    """
+        readstring(stream or filename, enc::ASCIIString)
+
+    Read the entire contents of an I/O stream or a file in encoding `enc` as a string.
+    """
+    Base.readstring(s::IO, enc::ASCIIString) = readstring(StringDecoder(s, enc))
+    Base.readstring(filename::AbstractString, enc::ASCIIString) = open(io->readstring(io, enc), filename)
+else # Compatibility with Julia 0.4
+    """
+        readall(stream or filename, enc::ASCIIString)
+
+    Read the entire contents of an I/O stream or a file in encoding `enc` as a string.
+    """
+    Base.readall(s::IO, enc::ASCIIString) = readall(StringDecoder(s, enc))
+    Base.readall(filename::AbstractString, enc::ASCIIString) = open(io->readall(io, enc), filename)
 end
 
 
@@ -329,6 +345,7 @@ function encode(s::AbstractString, enc::ASCIIString)
     close(p)
     takebuf_array(b)
 end
+
 
 ## Function to list supported encodings
 include("encodings.jl")
