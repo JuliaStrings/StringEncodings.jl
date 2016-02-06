@@ -3,7 +3,8 @@
 module StringEncodings
 import Base: close, eof, flush, read, readall, write, show
 import Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
-export StringEncoder, StringDecoder, encode, decode
+
+export StringEncoder, StringDecoder, encode, decode, encodings
 export StringEncodingError, OutputBufferError, IConvError
 export InvalidEncodingError, InvalidSequenceError, IncompleteSequenceError
 
@@ -324,6 +325,38 @@ function encode(s::AbstractString, enc::ASCIIString)
     write(p, s)
     close(p)
     takebuf_array(b)
+end
+
+## Function to list supported encodings
+include("encodings.jl")
+
+function test_encoding(enc)
+    # We assume that an encoding is supported if it's possible to convert from it to UTF-8:
+    cd = ccall((:iconv_open, libiconv), Ptr{Void}, (Cstring, Cstring), enc, "UTF-8")
+    if cd == Ptr{Void}(-1)
+        return false
+    else
+        iconv_close(cd)
+        return true
+    end
+end
+
+"""
+    encodings()
+
+List all encodings supported by `encode`, `decode`, `StringEncoder` and `StringDecoder`
+(i.e. by the current iconv implementation).
+
+Note that encodings typically appear several times under different names.
+In addition to the encodings returned by this function, the empty string (i.e. `""`)
+is equivalent to the encoding of the current locale.
+
+Some implementations may support even more encodings: this can be checked by attempting
+a conversion. In theory, it is not guaranteed that all conversions between all pairs of encodings
+are possible; but this is the case with all reasonable implementations.
+"""
+function encodings()
+    filter(test_encoding, encodings_list)
 end
 
 end # module

@@ -125,4 +125,8 @@ catch err
         "Conversion from nonexistent_encoding to UTF-8 not supported by iconv implementation, check that specified encodings are correct"
 end
 
+encodings_list = encodings()
+@test "ASCII" in encodings_list
+@test "UTF-8" in encodings_list
+
 nothing
