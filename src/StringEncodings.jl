@@ -1,4 +1,4 @@
-# This file is a part of Julia. License is MIT: http://julialang.org/license
+# This file is a part of StringEncodings.jl. License is MIT: http://julialang.org/license
 
 module StringEncodings
 import Base: close, eof, flush, read, readall, write, show
@@ -8,6 +8,7 @@ export StringEncoder, StringDecoder, encode, decode, encodings
 export StringEncodingError, OutputBufferError, IConvError
 export InvalidEncodingError, InvalidSequenceError, IncompleteSequenceError
 
+include("encodings.jl")
 
 abstract StringEncodingError
 
@@ -62,7 +63,7 @@ function iconv_close(cd::Ptr{Void})
     end
 end
 
-function iconv_open(tocode, fromcode)
+function iconv_open(tocode::ASCIIString, fromcode::ASCIIString)
     p = ccall((:iconv_open, libiconv), Ptr{Void}, (Cstring, Cstring), tocode, fromcode)
     if p != Ptr{Void}(-1)
         return p
@@ -173,14 +174,16 @@ end
 ## StringEncoder
 
 """
-    StringEncoder(istream, to, from="UTF-8")
+    StringEncoder(istream, to, from=enc"UTF-8")
 
 Returns a new write-only I/O stream, which converts any text in the encoding `from`
 written to it into text in the encoding `to` written to ostream. Calling `close` on the
 stream is necessary to complete the encoding (but does not close `ostream`).
+
+`to` and `from` can be specified either as a string or as an `Encoding` object.
 """
-function StringEncoder(ostream::IO, to::ASCIIString, from::ASCIIString="UTF-8")
-    cd = iconv_open(to, from)
+function StringEncoder(ostream::IO, to::Encoding, from::Encoding=enc"UTF-8")
+    cd = iconv_open(ASCIIString(to), ASCIIString(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
     s = StringEncoder(ostream, cd, inbuf, outbuf,
@@ -189,6 +192,11 @@ function StringEncoder(ostream::IO, to::ASCIIString, from::ASCIIString="UTF-8")
     finalizer(s, finalize)
     s
 end
+
+StringEncoder(ostream::IO, to::AbstractString, from::Encoding=enc"UTF-8") =
+    StringEncoder(ostream, Encoding(to), from)
+StringEncoder(ostream::IO, to::AbstractString, from::AbstractString) =
+    StringEncoder(ostream, Encoding(to), Encoding(from))
 
 # Flush input buffer and convert it into output buffer
 # Returns the number of bytes written to output buffer
@@ -226,16 +234,18 @@ end
 ## StringDecoder
 
 """
-    StringDecoder(istream, from, to="UTF-8")
+    StringDecoder(istream, from, to=enc"UTF-8")
 
 Returns a new read-only I/O stream, which converts text in the encoding `from`
 read from `istream` into text in the encoding `to`.
 
+`to` and `from` can be specified either as a string or as an `Encoding` object.
+
 Note that some implementations (notably the Windows one) may accept invalid sequences
 in the input data without raising an error.
 """
-function StringDecoder(istream::IO, from::ASCIIString, to::ASCIIString="UTF-8")
-    cd = iconv_open(to, from)
+function StringDecoder(istream::IO, from::Encoding, to::Encoding=enc"UTF-8")
+    cd = iconv_open(ASCIIString(to), ASCIIString(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
     s = StringDecoder(istream, cd, inbuf, outbuf,
@@ -244,6 +254,11 @@ function StringDecoder(istream::IO, from::ASCIIString, to::ASCIIString="UTF-8")
     finalizer(s, finalize)
     s
 end
+
+StringDecoder(istream::IO, from::AbstractString, to::Encoding=enc"UTF-8") =
+    StringDecoder(istream, Encoding(from), to)
+StringDecoder(istream::IO, from::AbstractString, to::AbstractString) =
+    StringDecoder(istream, Encoding(from), Encoding(to))
 
 # Fill input buffer and convert it into output buffer
 # Returns the number of bytes written to output buffer
@@ -289,68 +304,67 @@ end
 ## Convenience I/O functions
 if isdefined(Base, :readstring)
     @doc """
-        readstring(stream or filename, enc::ASCIIString)
+        readstring(stream or filename, enc::Encoding)
 
     Read the entire contents of an I/O stream or a file in encoding `enc` as a string.
     """ ->
-    Base.readstring(s::IO, enc::ASCIIString) = readstring(StringDecoder(s, enc))
-    Base.readstring(filename::AbstractString, enc::ASCIIString) = open(io->readstring(io, enc), filename)
+    Base.readstring(s::IO, enc::Encoding) = readstring(StringDecoder(s, enc))
+    Base.readstring(filename::AbstractString, enc::Encoding) = open(io->readstring(io, enc), filename)
 else # Compatibility with Julia 0.4
     @doc """
-        readall(stream or filename, enc::ASCIIString)
+        readall(stream or filename, enc::Encoding)
 
     Read the entire contents of an I/O stream or a file in encoding `enc` as a string.
     """ ->
-    Base.readall(s::IO, enc::ASCIIString) = readall(StringDecoder(s, enc))
-    Base.readall(filename::AbstractString, enc::ASCIIString) = open(io->readall(io, enc), filename)
+    Base.readall(s::IO, enc::Encoding) = readall(StringDecoder(s, enc))
+    Base.readall(filename::AbstractString, enc::Encoding) = open(io->readall(io, enc), filename)
 end
 
 
 ## Functions to encode/decode strings
 
-encoding_string(::Type{ASCIIString}) = "ASCII"
-encoding_string(::Type{UTF8String})  = "UTF-8"
-encoding_string(::Type{UTF16String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-16LE" : "UTF-16BE"
-encoding_string(::Type{UTF32String}) = (ENDIAN_BOM == 0x04030201) ? "UTF-32LE" : "UTF-32BE"
-
 """
-    decode([T,] a::Vector{UInt8}, enc::ASCIIString)
+    decode([T,] a::Vector{UInt8}, enc)
 
 Convert an array of bytes `a` representing text in encoding `enc` to a string of type `T`.
 By default, a `UTF8String` is returned.
 
+`enc` can be specified either as a string or as an `Encoding` object.
+
 Note that some implementations (notably the Windows one) may accept invalid sequences
 in the input data without raising an error.
 """
-function decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::ASCIIString)
+function decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::Encoding)
     b = IOBuffer(a)
     try
-        T(readbytes(StringDecoder(b, enc, encoding_string(T))))
+        T(readbytes(StringDecoder(b, enc, encoding(T))))
     finally
         close(b)
     end
 end
 
-decode(a::Vector{UInt8}, enc::ASCIIString) = decode(UTF8String, a, enc)
+decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::AbstractString) = decode(T, a, Encoding(enc))
+
+decode(a::Vector{UInt8}, enc::AbstractString) = decode(UTF8String, a, Encoding(enc))
+decode(a::Vector{UInt8}, enc::Union{AbstractString, Encoding}) = decode(UTF8String, a, enc)
 
 """
-    encode(s::AbstractString, enc::ASCIIString)
+    encode(s::AbstractString, enc)
 
 Convert string `s` to an array of bytes representing text in encoding `enc`.
+`enc` can be specified either as a string or as an `Encoding` object.
 """
-function encode(s::AbstractString, enc::ASCIIString)
+function encode(s::AbstractString, enc::Encoding)
     b = IOBuffer()
-    p = StringEncoder(b, enc, encoding_string(typeof(s)))
+    p = StringEncoder(b, enc, encoding(typeof(s)))
     write(p, s)
     close(p)
     takebuf_array(b)
 end
 
+encode(s::AbstractString, enc::AbstractString) = encode(s, Encoding(enc))
 
-## Function to list supported encodings
-include("encodings.jl")
-
-function test_encoding(enc)
+function test_encoding(enc::ASCIIString)
     # We assume that an encoding is supported if it's possible to convert from it to UTF-8:
     cd = ccall((:iconv_open, libiconv), Ptr{Void}, (Cstring, Cstring), enc, "UTF-8")
     if cd == Ptr{Void}(-1)

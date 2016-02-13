@@ -1,4 +1,35 @@
-import StringEncodings: libiconv, iconv_close
+# This file is a part of StringEncodings.jl. License is MIT: http://julialang.org/license
+
+# Parametric singleton type representing a given string encoding via its symbol parameter
+
+import Base: show, print, convert
+export Encoding, @enc_str
+
+immutable Encoding{enc} end
+
+Encoding(s) = Encoding{symbol(s)}()
+macro enc_str(s)
+    :(Encoding{$(Expr(:quote, symbol(s)))}())
+end
+
+convert{T<:AbstractString, enc}(::Type{T}, ::Encoding{enc}) = string(enc)
+
+show{enc}(io::IO, ::Encoding{enc}) = print(io, string(enc), " string encoding type")
+print{enc}(io::IO, ::Encoding{enc}) = print(io, enc)
+
+
+## Get the encoding used by a string type
+encoding(::Type{ASCIIString}) = enc"ASCII"
+encoding(::Type{UTF8String})  = enc"UTF-8"
+
+if ENDIAN_BOM == 0x04030201
+    encoding(::Type{UTF16String}) = enc"UTF-16LE"
+    encoding(::Type{UTF32String}) = enc"UTF-32LE"
+else
+    encoding(::Type{UTF16String}) = enc"UTF-16BE"
+    encoding(::Type{UTF32String}) = enc"UTF-32BE"
+end
+
 encodings_list = ["1026", "1046", "1047", "10646-1:1993", "10646-1:1993/UCS4",
                   "437", "500", "500V1", "850", "851", "852", "855", "856", "857",
                   "860", "861", "862", "863", "864", "865", "866", "866NAV", "869",
