@@ -7,7 +7,7 @@ for s in ("", "\0", "a", "café crème",
           "a string \0€ チャネルパ\0ー\0トナーの選択 with embedded and trailing nuls\0")
     # Test round-trip to Unicode formats, checking against pure-Julia implementation
     for (T, nullen) in ((UTF8String, 0), (UTF16String, 2), (UTF32String, 4))
-        enc = StringEncodings.encoding_string(T)
+        enc = StringEncodings.encoding(T)
         a = reinterpret(UInt8, T(s).data)
         # Adjust for explicit \0 only for .data on UTF16String/UTF32String
         a = a[1:end - nullen]
@@ -102,7 +102,7 @@ mktemp() do p, io
     s = "café crème"
     write(io, encode(s, "CP1252"))
     close(io)
-    @test readall(p, "CP1252") == s
+    @test readall(p, enc"CP1252") == s
 end
 
 @test_throws InvalidEncodingError p = StringEncoder(IOBuffer(), "nonexistent_encoding")
@@ -136,12 +136,27 @@ mktemp() do path, io
     write(io, encode(s, "ISO-2022-JP"))
     close(io)
 
-    @test readstring(path, "ISO-2022-JP") == s
-    @test open(io->readstring(io, "ISO-2022-JP"), path) == s
+    @test readstring(path, enc"ISO-2022-JP") == s
+    @test open(io->readstring(io, enc"ISO-2022-JP"), path) == s
 end
+
+
+## Test encodings support
 
 encodings_list = encodings()
 @test "ASCII" in encodings_list
 @test "UTF-8" in encodings_list
 
+@test native_endian(enc"ASCII") == native_endian(enc"UTF-8") == true
+@test native_endian(enc"UTF-16LE") == native_endian(enc"UTF16LE") == (ENDIAN_BOM == 0x04030201)
+@test native_endian(enc"UTF-16BE") == native_endian(enc"UTF16BE") == (ENDIAN_BOM != 0x04030201)
+@test native_endian(enc"UTF-32LE") == native_endian(enc"UTF32LE") == (ENDIAN_BOM == 0x04030201)
+@test native_endian(enc"UTF-32BE") == native_endian(enc"UTF32BE") == (ENDIAN_BOM != 0x04030201)
+
+@test codeunit(enc"ASCII") == UInt8
+@test codeunit(enc"UTF-8") == UInt8
+@test codeunit(enc"UTF-16") == codeunit(enc"UTF-16LE") == codeunit(enc"UTF-16BE") == UInt16
+@test codeunit(enc"UTF-32") == codeunit(enc"UTF-32LE") == codeunit(enc"UTF-32BE") == UInt32
+
 nothing
+
