@@ -33,6 +33,23 @@ end
 
 ## Functions giving information about a particular encoding
 
+# NO_ENDIAN: insensitive to endianness
+# BIG_ENDIAN: default to big-endian
+# LOW_ENDIAN: default to big-endian
+# BIG_ENDIAN_AUTO: endianness detection using BOM on input, defaults to big-endian on output
+# LOW_ENDIAN_AUTO: endianness detection using BOM on input, defaults to low-endian on output
+# NATIVE_ENDIAN_AUTO: endianness detection using BOM on input, defaults to native-endian on output
+@enum Endianness NO_ENDIAN BIG_ENDIAN LOW_ENDIAN BIG_ENDIAN_AUTO LOW_ENDIAN_AUTO NATIVE_ENDIAN_AUTO
+
+immutable EncodingInfo
+    name::ASCIIString
+    codeunit::Int8 # Number of bytes per codeunit
+    codepoint::Int8 # Number of bytes per codepoint; for MBCS, negative values give the maximum number of bytes
+    lowendian::Endianness # Endianness, if applicable
+    ascii::Bool # Is the encoding a superset of ASCII?
+    unicode::Bool # Is the encoding Unicode-compatible?
+end
+
 """
     native_endian(enc)
 
@@ -87,9 +104,85 @@ end
 
 codeunit(enc::AbstractString) = codeunit(Encoding(enc))
 
+const encodings_list2 = EncodingInfo[
+    EncodingInfo("ASCII", 1, 1, NO_ENDIAN, true, true),
+
+    # Unicode encodings
+    EncodingInfo("UTF-8", 1, -4, NO_ENDIAN, true, true),
+    EncodingInfo("UTF-16", 2, -2, BIG_ENDIAN_AUTO, false, true), # FIXME: iconv implementations vary regarding endianness
+    EncodingInfo("UTF-16LE", 2, -2, LOW_ENDIAN, false, true),
+    EncodingInfo("UTF-16BE", 2, -2, BIG_ENDIAN, false, true),
+    EncodingInfo("UTF-32",  4, 1, BIG_ENDIAN_AUTO, false, true), # FIXME: iconv implementations vary regarding endianness
+    EncodingInfo("UTF-32LE", 4, 1, LOW_ENDIAN, false, true),
+    EncodingInfo("UTF-32BE", 4, 1, BIG_ENDIAN, false, true),
+
+    EncodingInfo("UCS-2", 2, 1, BIG_ENDIAN_AUTO, false, true), # FIXME: iconv implementations vary regarding endianness
+    EncodingInfo("UCS-2LE", 2, 1, LOW_ENDIAN, false, true),
+    EncodingInfo("UCS-2BE", 2, 1, BIG_ENDIAN, false, true),
+
+    # ISO-8859
+    EncodingInfo("ISO-8869-1",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-2",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-3",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-4",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-5",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-6",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-7",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-8",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-9",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-10", 1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-11", 1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-12", 1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-13", 1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-14", 1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-15", 1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("ISO-8869-16", 1, 1, NO_ENDIAN, true, true),
+
+    # KOI8 codepages
+    EncodingInfo("KOI8-R", 1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("KOI8-U", 1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("KOI8-RU", 1, 1, NO_ENDIAN, true, true),
+
+    # 8-bit Windows codepages
+    EncodingInfo("CP1250",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP1251",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP1252",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP1253",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP1254",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP1255",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP1256",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP1257",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP1258",  1, 1, NO_ENDIAN, true, true),
+
+    # DOS 8-bit codepages
+    EncodingInfo("CP850",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("CP866",  1, 1, NO_ENDIAN, true, true),
+
+    # Mac 8-bit codepages
+    EncodingInfo("MacRoman",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacCentralEurope",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacIceland",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacCroatian",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacRomania",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacCyrillic",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacUkraine",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacGreek",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacTurkish",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacHebrew",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacArabic",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("MacThai",  1, 1, NO_ENDIAN, true, true),
+
+    # Other 8-bit codepages
+    EncodingInfo("HP-ROMAN8",  1, 1, NO_ENDIAN, true, true),
+    EncodingInfo("NEXTSTEP",  1, 1, NO_ENDIAN, true, true)
+
+    # TODO: other encodings (8-bit and others)
+    ]
+
 
 ## Lists of all known encodings taken from various iconv implementations,
 ## including different aliases for the same encoding
+
 
 # 8-bit codeunit encodings
 const encodings8 = [
