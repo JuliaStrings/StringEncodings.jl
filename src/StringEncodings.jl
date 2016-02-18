@@ -3,6 +3,7 @@
 module StringEncodings
 import Base: close, eof, flush, read, readall, write, show
 import Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
+import Compat: read
 
 export StringEncoder, StringDecoder, encode, decode, encodings
 export StringEncodingError, OutputBufferError, IConvError
@@ -337,7 +338,7 @@ in the input data without raising an error.
 function decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::Encoding)
     b = IOBuffer(a)
     try
-        T(readbytes(StringDecoder(b, enc, encoding(T))))
+        T(read(StringDecoder(b, enc, encoding(T))))
     finally
         close(b)
     end

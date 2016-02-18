@@ -1,4 +1,5 @@
 using Base.Test
+import Compat: readstring
 using StringEncodings
 
 for s in ("", "\0", "a", "café crème",
@@ -46,7 +47,7 @@ let s = "a string チャネルパートナーの選択"
     end
 
     p = StringDecoder(IOBuffer(encode(s, "UTF-16LE")[1:19]), "UTF-16LE")
-    @test readall(p) == s[1:9]
+    @test readstring(p) == s[1:9]
     @test_throws IncompleteSequenceError close(p)
 
     # Test stateful encoding, which output some bytes on final reset
@@ -102,7 +103,7 @@ mktemp() do p, io
     s = "café crème"
     write(io, encode(s, "CP1252"))
     close(io)
-    @test readall(p, enc"CP1252") == s
+    @test readstring(p, enc"CP1252") == s
 end
 
 @test_throws InvalidEncodingError p = StringEncoder(IOBuffer(), "nonexistent_encoding")
@@ -125,10 +126,6 @@ catch err
     showerror(io, err)
     @test takebuf_string(io) ==
         "Conversion from nonexistent_encoding to UTF-8 not supported by iconv implementation, check that specified encodings are correct"
-end
-
-if !isdefined(Base, :readstring)
-    readstring = readall
 end
 
 mktemp() do path, io
