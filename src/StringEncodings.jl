@@ -209,7 +209,7 @@ function flush(s::StringEncoder)
     s.outbytesleft[] = 0
     while s.outbytesleft[] < BUFSIZE
         iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
-        write(s.ostream, sub(s.outbuf, 1:(BUFSIZE - s.outbytesleft[])))
+        write(s.ostream, sub(s.outbuf, 1:(BUFSIZE - Int(s.outbytesleft[]))))
     end
 
     s
@@ -273,7 +273,7 @@ function fill_buffer!(s::StringDecoder)
         return i
     end
 
-    s.inbytesleft[] += readbytes!(s.istream, sub(s.inbuf, (s.inbytesleft[]+1):BUFSIZE))
+    s.inbytesleft[] += readbytes!(s.istream, sub(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE))
     iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
 end
 
