@@ -28,8 +28,12 @@ for (s, enc) in (("noël", "ISO-8859-1"),
 end
 
 # Test that attempt to close stream in the middle of incomplete sequence throws
-# TODO: use more specific errors
 let s = "a string チャネルパートナーの選択"
+    # First, correct version
+    p = StringEncoder(IOBuffer(), "UTF-16LE")
+    write(p, s.data)
+    close(p)
+
     p = StringEncoder(IOBuffer(), "UTF-16LE")
     write(p, s.data[1:10])
     @test_throws IncompleteSequenceError close(p)
@@ -129,12 +133,39 @@ catch err
 end
 
 mktemp() do path, io
-    s = "a string \0チャネルパ\0ー\0トナーの選択 with embedded and trailing nuls\0"
-    write(io, encode(s, "ISO-2022-JP"))
+    s = "a string \0チャネルパ\0ー\0トナーの選択 with embedded and trailing nuls\0\nand a second line"
     close(io)
+    open(path, enc"ISO-2022-JP", "w") do io
+        @test iswritable(io) && !isreadable(io)
+        write(io, s)
+    end
 
     @test readstring(path, enc"ISO-2022-JP") == s
     @test open(io->readstring(io, enc"ISO-2022-JP"), path) == s
+    @test open(readstring, path, enc"ISO-2022-JP") == s
+    @test readline(path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
+    @test open(readline, path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
+    a = readlines(path, enc"ISO-2022-JP")
+    b = open(readlines, path, enc"ISO-2022-JP")
+    c = collect(eachline(path, enc"ISO-2022-JP"))
+    d = open(io->collect(eachline(io, enc"ISO-2022-JP")), path)
+    @test a[1] == b[1] == c[1] == d[1] == string(split(s, '\n')[1], '\n')
+    @test a[2] == b[2] == c[2] == d[2] == split(s, '\n')[2]
+
+    # Test alternative syntaxes for open()
+    open(path, enc"ISO-2022-JP", "r") do io
+        @test isreadable(io) && !iswritable(io)
+        @test readstring(io) == s
+    end
+    open(path, enc"ISO-2022-JP", true, false, false, false, false) do io
+        @test isreadable(io) && !iswritable(io)
+        @test readstring(io) == s
+    end
+    @test_throws ArgumentError open(path, enc"ISO-2022-JP", "r+")
+    @test_throws ArgumentError open(path, enc"ISO-2022-JP", "w+")
+    @test_throws ArgumentError open(path, enc"ISO-2022-JP", "a+")
+    @test_throws ArgumentError open(path, enc"ISO-2022-JP", true, true, false, false, false)
+    @test_throws ArgumentError open(path, enc"ISO-2022-JP", true, false, false, false, true)
 end
 
 

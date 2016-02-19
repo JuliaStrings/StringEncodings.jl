@@ -1,7 +1,8 @@
 # This file is a part of StringEncodings.jl. License is MIT: http://julialang.org/license
 
 module StringEncodings
-import Base: close, eof, flush, read, readall, write, show
+import Base: close, eachline, eof, flush, isreadable, iswritable,
+             open, read, readline, readlines, show, write
 import Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 import Compat: read
 
@@ -82,6 +83,7 @@ const BUFSIZE = 100
 
 type StringEncoder{S<:IO} <: IO
     ostream::S
+    closestream::Bool
     cd::Ptr{Void}
     inbuf::Vector{UInt8}
     outbuf::Vector{UInt8}
@@ -93,6 +95,7 @@ end
 
 type StringDecoder{S<:IO} <: IO
     istream::S
+    closestream::Bool
     cd::Ptr{Void}
     inbuf::Vector{UInt8}
     outbuf::Vector{UInt8}
@@ -178,7 +181,7 @@ end
     StringEncoder(istream, to, from=enc"UTF-8")
 
 Returns a new write-only I/O stream, which converts any text in the encoding `from`
-written to it into text in the encoding `to` written to ostream. Calling `close` on the
+written to it into text in the encoding `to` written to `ostream`. Calling `close` on the
 stream is necessary to complete the encoding (but does not close `ostream`).
 
 `to` and `from` can be specified either as a string or as an `Encoding` object.
@@ -187,7 +190,7 @@ function StringEncoder(ostream::IO, to::Encoding, from::Encoding=enc"UTF-8")
     cd = iconv_open(ASCIIString(to), ASCIIString(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
-    s = StringEncoder(ostream, cd, inbuf, outbuf,
+    s = StringEncoder(ostream, false, cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE))
     finalizer(s, finalize)
@@ -221,6 +224,9 @@ function close(s::StringEncoder)
     iconv_reset!(s)
     # Make sure C memory/resources are returned
     finalize(s)
+    if s.closestream
+        close(s.ostream)
+    end
     # flush() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || throw(IncompleteSequenceError())
 end
@@ -238,7 +244,8 @@ end
     StringDecoder(istream, from, to=enc"UTF-8")
 
 Returns a new read-only I/O stream, which converts text in the encoding `from`
-read from `istream` into text in the encoding `to`.
+read from `istream` into text in the encoding `to`.  Calling `close` on the
+stream does not close `ostream`.
 
 `to` and `from` can be specified either as a string or as an `Encoding` object.
 
@@ -249,7 +256,7 @@ function StringDecoder(istream::IO, from::Encoding, to::Encoding=enc"UTF-8")
     cd = iconv_open(ASCIIString(to), ASCIIString(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
-    s = StringDecoder(istream, cd, inbuf, outbuf,
+    s = StringDecoder(istream, false, cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE), 0)
     finalizer(s, finalize)
@@ -293,6 +300,9 @@ function close(s::StringDecoder)
     iconv_reset!(s)
     # Make sure C memory/resources are returned
     finalize(s)
+    if s.closestream
+        close(s.istream)
+    end
     # iconv_reset!() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || throw(IncompleteSequenceError())
 end
@@ -301,24 +311,103 @@ function read(s::StringDecoder, ::Type{UInt8})
     eof(s) ? throw(EOFError()) : s.outbuf[s.skip+=1]
 end
 
+isreadable(s::StringDecoder) = isreadable(s.istream)
+iswritable(s::StringDecoder) = false
+
+isreadable(s::StringEncoder) = false
+iswritable(s::StringEncoder) = iswritable(s.ostream)
+
 
 ## Convenience I/O functions
+function wrap_stream(s::IO, enc::Encoding)
+    if iswritable(s) && isreadable(s) # Should never happen
+        throw(ArgumentError("cannot open encoded text files in read and write/append modes at the same time"))
+    end
+    s = iswritable(s) ? StringEncoder(s, enc) : StringDecoder(s, enc)
+    s.closestream = true
+    s
+end
+
+"""
+    open(filename::AbstractString, enc::Encoding[, args...])
+
+Open a text file in encoding `enc`, converting its contents to UTF-8 on the fly
+using `StringDecoder` (when reading) or `StringEncoder` (when writing).
+`args` is passed to `open`, so this function can be used as a replacement for all `open`
+variants for working with files.
+
+Note that calling `close` on the returned I/O stream will also close the associated file handle;
+this operation is necessary to complete the encoding in write mode. Opening a file for both
+reading and writing/appending is not supported.
+
+The returned I/O stream can be passed to functions working on strings without
+specifying the encoding again.
+"""
+open(fname::AbstractString, enc::Encoding, args...) = wrap_stream(open(fname, args...), enc)
+
+function open(fname::AbstractString, enc::Encoding,
+              rd::Bool, wr::Bool, cr::Bool, tr::Bool, ff::Bool)
+    if rd && (wr || ff)
+        throw(ArgumentError("cannot open encoded text files in read and write/append modes at the same time"))
+    end
+    wrap_stream(open(fname, rd, wr, cr, tr, ff), enc)
+end
+
+function open(fname::AbstractString, enc::Encoding, mode::AbstractString)
+    if mode in ("r+", "w+", "a+")
+        throw(ArgumentError("cannot open encoded text files in read and write/append modes at the same time"))
+    end
+    wrap_stream(open(fname, mode), enc)
+end
+
 if isdefined(Base, :readstring)
     @doc """
-        readstring(stream or filename, enc::Encoding)
+        readstring(stream::IO, enc::Encoding)
+        readstring(filename::AbstractString, enc::Encoding)
 
-    Read the entire contents of an I/O stream or a file in encoding `enc` as a string.
+    Methods to read text in character encoding `enc`.
     """ ->
     Base.readstring(s::IO, enc::Encoding) = readstring(StringDecoder(s, enc))
     Base.readstring(filename::AbstractString, enc::Encoding) = open(io->readstring(io, enc), filename)
 else # Compatibility with Julia 0.4
     @doc """
-        readall(stream or filename, enc::Encoding)
+        readall(stream::IO, enc::Encoding)
+        readall(filename::AbstractString, enc::Encoding)
 
-    Read the entire contents of an I/O stream or a file in encoding `enc` as a string.
+    Methods to read text in character encoding `enc`.
     """ ->
     Base.readall(s::IO, enc::Encoding) = readall(StringDecoder(s, enc))
     Base.readall(filename::AbstractString, enc::Encoding) = open(io->readall(io, enc), filename)
+end
+
+"""
+    readline(stream::IO, enc::Encoding)
+    readline(filename::AbstractString, enc::Encoding)
+
+Methods to read text in character encoding `enc`.
+"""
+readline(s::IO, enc::Encoding) = readline(StringDecoder(s, enc))
+readline(filename::AbstractString, enc::Encoding) = open(io->readline(io, enc), filename)
+
+"""
+    readlines(stream::IO, enc::Encoding)
+    readlines(filename::AbstractString, enc::Encoding)
+
+Methods to read text in character encoding `enc`.
+"""
+readlines(s::IO, enc::Encoding) = readlines(StringDecoder(s, enc))
+readlines(filename::AbstractString, enc::Encoding) = open(io->readlines(io, enc), filename)
+
+"""
+    eachline(stream::IO, enc::Encoding)
+    eachline(filename::AbstractString, enc::Encoding)
+
+Methods to read text in character encoding `enc`. Decoding is performed on the fly.
+"""
+eachline(s::IO, enc::Encoding) = eachline(StringDecoder(s, enc))
+function eachline(filename::AbstractString, enc::Encoding)
+    s = open(filename, enc)
+    EachLine(s, ()->close(s))
 end
 
 
@@ -359,7 +448,7 @@ function encode(s::AbstractString, enc::Encoding)
     b = IOBuffer()
     p = StringEncoder(b, enc, encoding(typeof(s)))
     write(p, s)
-    close(p)
+    flush(p)
     takebuf_array(b)
 end
 
