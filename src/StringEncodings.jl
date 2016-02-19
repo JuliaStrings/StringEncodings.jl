@@ -2,7 +2,7 @@
 
 module StringEncodings
 import Base: close, eachline, eof, flush, isreadable, iswritable,
-             open, read, readline, readlines, show, write
+             open, read, readline, readlines, readuntil, show, write
 import Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 import Compat: read
 
@@ -397,6 +397,15 @@ Methods to read text in character encoding `enc`.
 """
 readlines(s::IO, enc::Encoding) = readlines(StringDecoder(s, enc))
 readlines(filename::AbstractString, enc::Encoding) = open(io->readlines(io, enc), filename)
+
+"""
+    readuntil(stream::IO, enc::Encoding, delim)
+    readuntil(filename::AbstractString, enc::Encoding, delim)
+
+Methods to read text in character encoding `enc`.
+"""
+readuntil(s::IO, enc::Encoding, delim) = readuntil(StringDecoder(s, enc), delim)
+readuntil(filename::AbstractString, enc::Encoding, delim) = open(io->readuntil(io, enc, delim), filename)
 
 """
     eachline(stream::IO, enc::Encoding)

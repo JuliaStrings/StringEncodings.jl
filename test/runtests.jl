@@ -143,12 +143,20 @@ mktemp() do path, io
     @test readstring(path, enc"ISO-2022-JP") == s
     @test open(io->readstring(io, enc"ISO-2022-JP"), path) == s
     @test open(readstring, path, enc"ISO-2022-JP") == s
+
+    @test readuntil(path, enc"ISO-2022-JP", '\0') == "a string \0"
+    @test open(io->readuntil(io, enc"ISO-2022-JP", '\0'), path) == "a string \0"
+    @test readuntil(path, enc"ISO-2022-JP", "チャ") == "a string \0チャ"
+    @test open(io->readuntil(io, enc"ISO-2022-JP", "チャ"), path) == "a string \0チャ"
+
     @test readline(path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
     @test open(readline, path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
     a = readlines(path, enc"ISO-2022-JP")
     b = open(readlines, path, enc"ISO-2022-JP")
+
     c = collect(eachline(path, enc"ISO-2022-JP"))
     d = open(io->collect(eachline(io, enc"ISO-2022-JP")), path)
+
     @test a[1] == b[1] == c[1] == d[1] == string(split(s, '\n')[1], '\n')
     @test a[2] == b[2] == c[2] == d[2] == split(s, '\n')[2]
 
