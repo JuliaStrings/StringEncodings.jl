@@ -170,6 +170,10 @@ end
 
 
 ## Test encodings support
+b = IOBuffer()
+show(b, enc"UTF-8")
+@test takebuf_string(b) == "UTF-8 string encoding"
+@test string(enc"UTF-8") == "UTF-8"
 
 encodings_list = encodings()
 @test "ASCII" in encodings_list

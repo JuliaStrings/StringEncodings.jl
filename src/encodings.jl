@@ -14,7 +14,7 @@ end
 
 convert{T<:AbstractString, enc}(::Type{T}, ::Encoding{enc}) = string(enc)
 
-show{enc}(io::IO, ::Encoding{enc}) = print(io, string(enc), " string encoding type")
+show{enc}(io::IO, ::Encoding{enc}) = print(io, string(enc), " string encoding")
 print{enc}(io::IO, ::Encoding{enc}) = print(io, enc)
 
 
