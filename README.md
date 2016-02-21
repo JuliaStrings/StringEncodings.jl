@@ -113,8 +113,6 @@ julia> readuntil(path, enc"UTF-16", "o")
 
 When performing more complex operations on an encoded text file, it will often be easier to specify the encoding only once when opening it. The resulting I/O stream can then be passed to functions that are unaware of encodings (i.e. that assume UTF-8 text):
 ```julia
-julia> open(path, enc"UTF-16")
-
 julia> io = open(path, enc"UTF-16");
 
 julia> readstring(io)
