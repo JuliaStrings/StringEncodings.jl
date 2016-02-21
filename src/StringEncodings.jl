@@ -82,7 +82,7 @@ end
 const BUFSIZE = 100
 
 type StringEncoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
-    ostream::S
+    stream::S
     closestream::Bool
     cd::Ptr{Void}
     inbuf::Vector{UInt8}
@@ -94,7 +94,7 @@ type StringEncoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
 end
 
 type StringDecoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
-    istream::S
+    stream::S
     closestream::Bool
     cd::Ptr{Void}
     inbuf::Vector{UInt8}
@@ -178,19 +178,19 @@ end
 ## StringEncoder
 
 """
-    StringEncoder(istream, to, from=enc"UTF-8")
+    StringEncoder(stream, to, from=enc"UTF-8")
 
 Returns a new write-only I/O stream, which converts any text in the encoding `from`
-written to it into text in the encoding `to` written to `ostream`. Calling `close` on the
-stream is necessary to complete the encoding (but does not close `ostream`).
+written to it into text in the encoding `to` written to `stream`. Calling `close` on the
+stream is necessary to complete the encoding (but does not close `stream`).
 
 `to` and `from` can be specified either as a string or as an `Encoding` object.
 """
-function StringEncoder(ostream::IO, to::Encoding, from::Encoding=enc"UTF-8")
+function StringEncoder(stream::IO, to::Encoding, from::Encoding=enc"UTF-8")
     cd = iconv_open(ASCIIString(to), ASCIIString(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
-    s = StringEncoder{typeof(from), typeof(to), typeof(ostream)}(ostream, false,
+    s = StringEncoder{typeof(from), typeof(to), typeof(stream)}(stream, false,
                       cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE))
@@ -198,15 +198,15 @@ function StringEncoder(ostream::IO, to::Encoding, from::Encoding=enc"UTF-8")
     s
 end
 
-StringEncoder(ostream::IO, to::AbstractString, from::Encoding=enc"UTF-8") =
-    StringEncoder(ostream, Encoding(to), from)
-StringEncoder(ostream::IO, to::AbstractString, from::AbstractString) =
-    StringEncoder(ostream, Encoding(to), Encoding(from))
+StringEncoder(stream::IO, to::AbstractString, from::Encoding=enc"UTF-8") =
+    StringEncoder(stream, Encoding(to), from)
+StringEncoder(stream::IO, to::AbstractString, from::AbstractString) =
+    StringEncoder(stream, Encoding(to), Encoding(from))
 
 function show{F, T, S}(io::IO, s::StringEncoder{F, T, S})
     from = F()
     to = T()
-    print(io, "StringEncoder{$from, $to}($(s.ostream))")
+    print(io, "StringEncoder{$from, $to}($(s.stream))")
 end
 
 # Flush input buffer and convert it into output buffer
@@ -220,7 +220,7 @@ function flush(s::StringEncoder)
     s.outbytesleft[] = 0
     while s.outbytesleft[] < BUFSIZE
         iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
-        write(s.ostream, sub(s.outbuf, 1:(BUFSIZE - Int(s.outbytesleft[]))))
+        write(s.stream, sub(s.outbuf, 1:(BUFSIZE - Int(s.outbytesleft[]))))
     end
 
     s
@@ -232,7 +232,7 @@ function close(s::StringEncoder)
     # Make sure C memory/resources are returned
     finalize(s)
     if s.closestream
-        close(s.ostream)
+        close(s.stream)
     end
     # flush() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || throw(IncompleteSequenceError())
@@ -248,22 +248,22 @@ end
 ## StringDecoder
 
 """
-    StringDecoder(istream, from, to=enc"UTF-8")
+    StringDecoder(stream, from, to=enc"UTF-8")
 
 Returns a new read-only I/O stream, which converts text in the encoding `from`
-read from `istream` into text in the encoding `to`.  Calling `close` on the
-stream does not close `ostream`.
+read from `stream` into text in the encoding `to`.  Calling `close` on the
+stream does not close `stream`.
 
 `to` and `from` can be specified either as a string or as an `Encoding` object.
 
 Note that some implementations (notably the Windows one) may accept invalid sequences
 in the input data without raising an error.
 """
-function StringDecoder(istream::IO, from::Encoding, to::Encoding=enc"UTF-8")
+function StringDecoder(stream::IO, from::Encoding, to::Encoding=enc"UTF-8")
     cd = iconv_open(ASCIIString(to), ASCIIString(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
-    s = StringDecoder{typeof(from), typeof(to), typeof(istream)}(istream, false,
+    s = StringDecoder{typeof(from), typeof(to), typeof(stream)}(stream, false,
                       cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE), 0)
@@ -271,15 +271,15 @@ function StringDecoder(istream::IO, from::Encoding, to::Encoding=enc"UTF-8")
     s
 end
 
-StringDecoder(istream::IO, from::AbstractString, to::Encoding=enc"UTF-8") =
-    StringDecoder(istream, Encoding(from), to)
-StringDecoder(istream::IO, from::AbstractString, to::AbstractString) =
-    StringDecoder(istream, Encoding(from), Encoding(to))
+StringDecoder(stream::IO, from::AbstractString, to::Encoding=enc"UTF-8") =
+    StringDecoder(stream, Encoding(from), to)
+StringDecoder(stream::IO, from::AbstractString, to::AbstractString) =
+    StringDecoder(stream, Encoding(from), Encoding(to))
 
 function show{F, T, S}(io::IO, s::StringDecoder{F, T, S})
     from = F()
     to = T()
-    print(io, "StringDecoder{$from, $to}($(s.istream))")
+    print(io, "StringDecoder{$from, $to}($(s.stream))")
 end
 
 # Fill input buffer and convert it into output buffer
@@ -290,12 +290,12 @@ function fill_buffer!(s::StringDecoder)
     s.skip = 0
 
     # Input buffer and input stream empty
-    if s.inbytesleft[] == 0 && eof(s.istream)
+    if s.inbytesleft[] == 0 && eof(s.stream)
         i = iconv_reset!(s)
         return i
     end
 
-    s.inbytesleft[] += readbytes!(s.istream, sub(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE))
+    s.inbytesleft[] += readbytes!(s.stream, sub(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE))
     iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
 end
 
@@ -315,7 +315,7 @@ function close(s::StringDecoder)
     # Make sure C memory/resources are returned
     finalize(s)
     if s.closestream
-        close(s.istream)
+        close(s.stream)
     end
     # iconv_reset!() wasn't able to empty input buffer, which cannot happen with correct data
     s.inbytesleft[] == 0 || throw(IncompleteSequenceError())
@@ -325,11 +325,11 @@ function read(s::StringDecoder, ::Type{UInt8})
     eof(s) ? throw(EOFError()) : s.outbuf[s.skip+=1]
 end
 
-isreadable(s::StringDecoder) = isreadable(s.istream)
+isreadable(s::StringDecoder) = isreadable(s.stream)
 iswritable(s::StringDecoder) = false
 
 isreadable(s::StringEncoder) = false
-iswritable(s::StringEncoder) = iswritable(s.ostream)
+iswritable(s::StringEncoder) = iswritable(s.stream)
 
 
 ## Convenience I/O functions
