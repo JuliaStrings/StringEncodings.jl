@@ -34,7 +34,9 @@ let s = "a string チャネルパートナーの選択"
     write(p, s.data)
     close(p)
 
-    p = StringEncoder(IOBuffer(), "UTF-16LE")
+    b = IOBuffer()
+    p = StringEncoder(b, "UTF-16LE")
+    @test string(p) == "StringEncoder{UTF-8, UTF-16LE}($(string(b)))"
     write(p, s.data[1:10])
     @test_throws IncompleteSequenceError close(p)
 
@@ -50,7 +52,9 @@ let s = "a string チャネルパートナーの選択"
         @test takebuf_string(io) == "Incomplete byte sequence at end of input"
     end
 
-    p = StringDecoder(IOBuffer(encode(s, "UTF-16LE")[1:19]), "UTF-16LE")
+    b = IOBuffer(encode(s, "UTF-16LE")[1:19])
+    p = StringDecoder(b, "UTF-16LE")
+    @test string(p) == "StringDecoder{UTF-16LE, UTF-8}($(string(b)))"
     @test readstring(p) == s[1:9]
     @test_throws IncompleteSequenceError close(p)
 
@@ -59,7 +63,8 @@ let s = "a string チャネルパートナーの選択"
     x = encode(s, "ISO-2022-JP")
     @test decode(x, "ISO-2022-JP") == s
 
-    p = StringDecoder(IOBuffer(x), "ISO-2022-JP", "UTF-8")
+    p = StringDecoder(b, "ISO-2022-JP", "UTF-8")
+    b = IOBuffer(x)
     # Test that closed pipe behaves correctly
     close(p)
     @test eof(p)

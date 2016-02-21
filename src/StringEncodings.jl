@@ -81,7 +81,7 @@ end
 
 const BUFSIZE = 100
 
-type StringEncoder{S<:IO} <: IO
+type StringEncoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
     ostream::S
     closestream::Bool
     cd::Ptr{Void}
@@ -93,7 +93,7 @@ type StringEncoder{S<:IO} <: IO
     outbytesleft::Ref{Csize_t}
 end
 
-type StringDecoder{S<:IO} <: IO
+type StringDecoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
     istream::S
     closestream::Bool
     cd::Ptr{Void}
@@ -190,7 +190,8 @@ function StringEncoder(ostream::IO, to::Encoding, from::Encoding=enc"UTF-8")
     cd = iconv_open(ASCIIString(to), ASCIIString(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
-    s = StringEncoder(ostream, false, cd, inbuf, outbuf,
+    s = StringEncoder{typeof(from), typeof(to), typeof(ostream)}(ostream, false,
+                      cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE))
     finalizer(s, finalize)
@@ -201,6 +202,12 @@ StringEncoder(ostream::IO, to::AbstractString, from::Encoding=enc"UTF-8") =
     StringEncoder(ostream, Encoding(to), from)
 StringEncoder(ostream::IO, to::AbstractString, from::AbstractString) =
     StringEncoder(ostream, Encoding(to), Encoding(from))
+
+function show{F, T, S}(io::IO, s::StringEncoder{F, T, S})
+    from = F()
+    to = T()
+    print(io, "StringEncoder{$from, $to}($(s.ostream))")
+end
 
 # Flush input buffer and convert it into output buffer
 # Returns the number of bytes written to output buffer
@@ -256,7 +263,8 @@ function StringDecoder(istream::IO, from::Encoding, to::Encoding=enc"UTF-8")
     cd = iconv_open(ASCIIString(to), ASCIIString(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
-    s = StringDecoder(istream, false, cd, inbuf, outbuf,
+    s = StringDecoder{typeof(from), typeof(to), typeof(istream)}(istream, false,
+                      cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE), 0)
     finalizer(s, finalize)
@@ -267,6 +275,12 @@ StringDecoder(istream::IO, from::AbstractString, to::Encoding=enc"UTF-8") =
     StringDecoder(istream, Encoding(from), to)
 StringDecoder(istream::IO, from::AbstractString, to::AbstractString) =
     StringDecoder(istream, Encoding(from), Encoding(to))
+
+function show{F, T, S}(io::IO, s::StringDecoder{F, T, S})
+    from = F()
+    to = T()
+    print(io, "StringDecoder{$from, $to}($(s.istream))")
+end
 
 # Fill input buffer and convert it into output buffer
 # Returns the number of bytes written to output buffer
