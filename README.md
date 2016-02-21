@@ -5,7 +5,10 @@
 [![Coveralls Coverage Status](https://coveralls.io/repos/nalimilan/StringEncodings.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/nalimilan/StringEncodings.jl?branch=master)
 [![Codecov Coverage Status](http://codecov.io/github/nalimilan/StringEncodings.jl/coverage.svg?branch=master)](http://codecov.io/github/nalimilan/StringEncodings.jl?branch=master)
 
-This Julia package provides support for decoding and encoding texts between multiple character encodings. It is currently based on the iconv interface, and supports all major platforms (on Windows, it uses the native OS API via [win_iconv](https://github.com/win-iconv/win-iconv/). In the future, native Julia support for major encodings will be added.
+[![Julia 0.4 Status](http://pkg.julialang.org/badges/StringEncodings_0.4.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.4)
+[![Julia 0.5 Status](http://pkg.julialang.org/badges/StringEncodings_0.5.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.5)
+
+This Julia package provides support for decoding and encoding texts between multiple character encodings. It it currently based on the iconv interface, and supports all major platforms (on Windows, it uses the native OS API via [win_iconv](https://github.com/win-iconv/win-iconv/)). In the future, native Julia support for major encodings will be added.
 
 ## Encoding and Decoding Strings
 *Encoding* a refers to the process of converting a string (of any `AbstractString` type) to a sequence of bytes represented as a `Vector{UInt8}`. *Decoding* refers to the inverse process.
@@ -59,7 +62,7 @@ julia> encodings()
 (Note that many of these are aliases for standard names.)
 
 ## The `Encoding` type
-In the examples above, the encoding was specified as a standard string. Though, in order to avoid ambiguities in multiple dispatch and to benefit from type specialization performance benefits, the package offers a special `Encoding` parametric type. Each parameterization of this type represents a character encoding. The non-standard string literal `enc` can be used to create an instance of this type, like so: `enc"UTF-16"`.
+In the examples above, the encoding was specified as a standard string. Though, in order to avoid ambiguities in multiple dispatch and to benefit from type specialization performance benefits, the package offers a special `Encoding` parametric type. Each parameterization of this type represents a character encoding. The [non-standard string literal](http://docs.julialang.org/en/stable/manual/strings/#man-non-standard-string-literals) `enc` can be used to create an instance of this type, like so: `enc"UTF-16"`.
 
 Since there is no ambiguity, the `encode` and `decode` functions accept either a string or an `Encoding` object. On the other hand, other functions presented below only support the latter to avoid creating conflicts with other packages extending Julia Base methods.
 
