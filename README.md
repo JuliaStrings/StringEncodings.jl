@@ -119,6 +119,14 @@ julia> readstring(io)
 "café\nnoël"
 ```
 
+In particular, this method allows reading encoded comma-separated values (CSV) and other character-delimited text files:
+```julia
+julia> open(readcsv, path, enc"UTF-16")
+2x1 Array{Any,2}:
+ "café"
+ "noël"
+```
+
 ## Advanced Usage: `StringEncoder` and `StringDecoder`
 The convenience functions presented above are based on the `StringEncoder` and `StringDecoder` types, which wrap I/O streams and offer on the fly character encoding conversion facilities. They can be used directly if you need to work with encoded text on an already existing I/O stream. This can be illustrated using an `IOBuffer`:
 ```
