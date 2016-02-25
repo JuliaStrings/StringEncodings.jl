@@ -129,7 +129,7 @@ julia> open(readcsv, path, enc"UTF-16")
 
 ## Advanced Usage: `StringEncoder` and `StringDecoder`
 The convenience functions presented above are based on the `StringEncoder` and `StringDecoder` types, which wrap I/O streams and offer on the fly character encoding conversion facilities. They can be used directly if you need to work with encoded text on an already existing I/O stream. This can be illustrated using an `IOBuffer`:
-```
+```julia
 julia> b = IOBuffer();
 
 julia> s = StringEncoder(b, "UTF-16");
