@@ -62,7 +62,7 @@ julia> encodings()
 (Note that many of these are aliases for standard names.)
 
 ## The `Encoding` type
-In the examples above, the encoding was specified as a standard string. Though, in order to avoid ambiguities in multiple dispatch and to benefit from type specialization performance benefits, the package offers a special `Encoding` parametric type. Each parameterization of this type represents a character encoding. The [non-standard string literal](http://docs.julialang.org/en/stable/manual/strings/#man-non-standard-string-literals) `enc` can be used to create an instance of this type, like so: `enc"UTF-16"`.
+In the examples above, the encoding was specified as a standard string. Though, in order to avoid ambiguities in multiple dispatch and to increase performance via type specialization, the package offers a special `Encoding` parametric type. Each parameterization of this type represents a character encoding. The [non-standard string literal](http://docs.julialang.org/en/stable/manual/strings/#man-non-standard-string-literals) `enc` can be used to create an instance of this type, like so: `enc"UTF-16"`.
 
 Since there is no ambiguity, the `encode` and `decode` functions accept either a string or an `Encoding` object. On the other hand, other functions presented below only support the latter to avoid creating conflicts with other packages extending Julia Base methods.
 
@@ -128,32 +128,24 @@ julia> open(readcsv, path, enc"UTF-16")
 ```
 
 ## Advanced Usage: `StringEncoder` and `StringDecoder`
-The convenience functions presented above are based on the `StringEncoder` and `StringDecoder` types, which wrap I/O streams and offer on the fly character encoding conversion facilities. They can be used directly if you need to work with encoded text on an already existing I/O stream. This can be illustrated using an `IOBuffer`:
+The convenience functions presented above are based on the `StringEncoder` and `StringDecoder` types, which wrap I/O streams and offer on-the-fly character encoding conversion facilities. They can be used directly if you need to work with encoded text on an already existing I/O stream. This can be illustrated using an `IOBuffer`:
 ```julia
 julia> b = IOBuffer();
 
 julia> s = StringEncoder(b, "UTF-16");
 
-julia> write(s, "café");
+julia> write(s, "café"); # Encoding happens automatically here
 
 julia> close(s); # Essential to complete encoding
 
-julia> decode(takebuf_array(b), enc"UTF-16")
-"café"
-```
-
-And the reverse operation:
-```julia
-julia> b = IOBuffer();
+julia> seek(b, 0); # Move to start of buffer
 
 julia> s = StringDecoder(b, "UTF-16");
 
-julia> write(b, encode("café", enc"UTF-16"));
-
-julia> decode(takebuf_array(b), enc"UTF-16")
+julia> readstring(s) # Decoding happens automatically here
 "café"
 ```
 
-Do not forget to call `close` on `StringEncoder` and `StringDecoder` objects to release iconv resources. In the case of `StringEncoder`, this function will also call `flush`, which will write any characters still in the buffer, and possibly some control sequences (for stateful encodings).
+Do not forget to call `close` on `StringEncoder` and `StringDecoder` objects to finish the encoding process. For `StringEncoder`, this function calls `flush`, which writes any characters still in the buffer, and possibly some control sequences (for stateful encodings). For both `StringEncoder` and `StringDecoder`, `close` checks that there are no incomplete sequences left in the input stream, and raise an `IncompleteSequenceError` if that's the case. It will also free iconv resources immediately, instead of waiting for garbage collection.
 
 Conversion currently raises an error if an invalid byte sequence is encountered in the input, or if some characters cannot be represented in the target enconding. It is not yet possible to ignore such characters or to replace them with a placeholder.
