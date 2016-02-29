@@ -111,6 +111,11 @@ function finalize(s::Union{StringEncoder, StringDecoder})
     if s.cd != C_NULL
         iconv_close(s.cd)
         s.cd = C_NULL
+        # To ensure that eof() returns true without an additional check
+        if isa(s, StringDecoder)
+            s.outbytesleft[] = BUFSIZE
+            s.skip = 0
+        end
     end
     nothing
 end
@@ -239,7 +244,10 @@ function close(s::StringEncoder)
 end
 
 function write(s::StringEncoder, x::UInt8)
-    s.inbytesleft[] >= length(s.inbuf) && flush(s)
+    s.cd == C_NULL && throw(ArgumentError("cannot write to closed StringEncoder"))
+    if s.inbytesleft[] >= length(s.inbuf)
+        flush(s)
+    end
     s.inbuf[s.inbytesleft[]+=1] = x
     1
 end
@@ -322,14 +330,15 @@ function close(s::StringDecoder)
 end
 
 function read(s::StringDecoder, ::Type{UInt8})
+    s.cd == C_NULL && throw(ArgumentError("cannot read from closed StringDecoder"))
     eof(s) ? throw(EOFError()) : s.outbuf[s.skip+=1]
 end
 
-isreadable(s::StringDecoder) = isreadable(s.stream)
+isreadable(s::StringDecoder) = s.cd != C_NULL && isreadable(s.stream)
 iswritable(s::StringDecoder) = false
 
 isreadable(s::StringEncoder) = false
-iswritable(s::StringEncoder) = iswritable(s.stream)
+iswritable(s::StringEncoder) = s.cd != C_NULL && iswritable(s.stream)
 
 
 ## Convenience I/O functions

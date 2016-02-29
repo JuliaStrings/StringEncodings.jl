@@ -33,12 +33,16 @@ let s = "a string チャネルパートナーの選択"
     p = StringEncoder(IOBuffer(), "UTF-16LE")
     write(p, s.data)
     close(p)
+    # Test that closed pipe behaves correctly
+    @test_throws ArgumentError write(p, 'a')
 
     b = IOBuffer()
     p = StringEncoder(b, "UTF-16LE")
     @test string(p) == "StringEncoder{UTF-8, UTF-16LE}($(string(b)))"
     write(p, s.data[1:10])
     @test_throws IncompleteSequenceError close(p)
+    # Test that closed pipe behaves correctly even after an error
+    @test_throws ArgumentError write(p, 'a')
 
     # This time, call show
     p = StringEncoder(IOBuffer(), "UTF-16LE")
@@ -57,6 +61,9 @@ let s = "a string チャネルパートナーの選択"
     @test string(p) == "StringDecoder{UTF-16LE, UTF-8}($(string(b)))"
     @test readstring(p) == s[1:9]
     @test_throws IncompleteSequenceError close(p)
+    # Test that closed pipe behaves correctly even after an error
+    @test eof(p)
+    @test_throws ArgumentError read(p, UInt8)
 
     # Test stateful encoding, which output some bytes on final reset
     # with strings containing different scripts
@@ -68,7 +75,7 @@ let s = "a string チャネルパートナーの選択"
     # Test that closed pipe behaves correctly
     close(p)
     @test eof(p)
-    @test_throws EOFError read(p, UInt8)
+    @test_throws ArgumentError read(p, UInt8)
     close(p)
 end
 
