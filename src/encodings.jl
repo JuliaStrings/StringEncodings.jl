@@ -2,14 +2,21 @@
 
 # Parametric singleton type representing a given string encoding via its symbol parameter
 
+module Encodings
+
+using Compat
 import Base: show, print, convert
-export Encoding, @enc_str
+export encoding, encodings_list, Encoding, @enc_str
+
+if VERSION >= v"0.5.0-"
+    using LegacyStrings: ASCIIString, UTF8String, UTF16String, UTF32String
+end
 
 immutable Encoding{enc} end
 
-Encoding(s) = Encoding{symbol(s)}()
+Encoding(s) = Encoding{Symbol(s)}()
 macro enc_str(s)
-    :(Encoding{$(Expr(:quote, symbol(s)))}())
+    :(Encoding{$(Expr(:quote, Symbol(s)))}())
 end
 
 convert{T<:AbstractString, enc}(::Type{T}, ::Encoding{enc}) = string(enc)
@@ -19,6 +26,10 @@ print{enc}(io::IO, ::Encoding{enc}) = print(io, enc)
 
 
 ## Get the encoding used by a string type
+if VERSION >= v"0.5.0-"
+    encoding(::Type{String})  = enc"UTF-8"
+end
+
 encoding(::Type{ASCIIString}) = enc"ASCII"
 encoding(::Type{UTF8String})  = enc"UTF-8"
 
@@ -300,3 +311,4 @@ encodings_list = ["1026", "1046", "1047", "10646-1:1993", "10646-1:1993/UCS4",
                   "x-mac-icelandic", "x-mac-japanese", "x-mac-korean", "x-mac-romanian",
                   "x-mac-thai", "x-mac-turkish", "x-mac-ukrainian", "X0201", "X0208",
                   "X0212", "YU"]
+end # module

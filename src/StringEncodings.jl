@@ -1,9 +1,11 @@
 # This file is a part of StringEncodings.jl. License is MIT: http://julialang.org/license
 
 module StringEncodings
+using Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
+using Compat: String, ASCIIString, UTF8String, view
+
 import Base: close, eachline, eof, flush, isreadable, iswritable,
-             open, read, readline, readlines, readuntil, show, write
-import Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
+             open, readline, readlines, readuntil, show, write
 import Compat: read
 
 export StringEncoder, StringDecoder, encode, decode, encodings
@@ -11,6 +13,8 @@ export StringEncodingError, OutputBufferError, IConvError
 export InvalidEncodingError, InvalidSequenceError, IncompleteSequenceError
 
 include("encodings.jl")
+using StringEncodings.Encodings
+export encoding, encodings_list, Encoding, @enc_str
 
 abstract StringEncodingError
 
@@ -31,7 +35,7 @@ message(::Type{InvalidSequenceError}) = "Byte sequence 0x<<1>> is invalid in sou
 type IConvError <: StringEncodingError
     args::Tuple{ASCIIString, Int, ASCIIString}
 end
-IConvError(func::ASCIIString) = IConvError((func, errno(), strerror(errno())))
+IConvError(func::String) = IConvError((func, errno(), strerror(errno())))
 message(::Type{IConvError}) = "<<1>>: <<2>> (<<3>>)"
 
 # Input ended with incomplete byte sequence
@@ -65,7 +69,7 @@ function iconv_close(cd::Ptr{Void})
     end
 end
 
-function iconv_open(tocode::ASCIIString, fromcode::ASCIIString)
+function iconv_open(tocode::String, fromcode::String)
     p = ccall((:iconv_open, libiconv), Ptr{Void}, (Cstring, Cstring), tocode, fromcode)
     if p != Ptr{Void}(-1)
         return p
@@ -192,7 +196,7 @@ stream is necessary to complete the encoding (but does not close `stream`).
 `to` and `from` can be specified either as a string or as an `Encoding` object.
 """
 function StringEncoder(stream::IO, to::Encoding, from::Encoding=enc"UTF-8")
-    cd = iconv_open(ASCIIString(to), ASCIIString(from))
+    cd = iconv_open(String(to), String(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
     s = StringEncoder{typeof(from), typeof(to), typeof(stream)}(stream, false,
@@ -225,7 +229,7 @@ function flush(s::StringEncoder)
     s.outbytesleft[] = 0
     while s.outbytesleft[] < BUFSIZE
         iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
-        write(s.stream, sub(s.outbuf, 1:(BUFSIZE - Int(s.outbytesleft[]))))
+        write(s.stream, view(s.outbuf, 1:(BUFSIZE - Int(s.outbytesleft[]))))
     end
 
     s
@@ -268,7 +272,7 @@ Note that some implementations (notably the Windows one) may accept invalid sequ
 in the input data without raising an error.
 """
 function StringDecoder(stream::IO, from::Encoding, to::Encoding=enc"UTF-8")
-    cd = iconv_open(ASCIIString(to), ASCIIString(from))
+    cd = iconv_open(String(to), String(from))
     inbuf = Vector{UInt8}(BUFSIZE)
     outbuf = Vector{UInt8}(BUFSIZE)
     s = StringDecoder{typeof(from), typeof(to), typeof(stream)}(stream, false,
@@ -303,7 +307,7 @@ function fill_buffer!(s::StringDecoder)
         return i
     end
 
-    s.inbytesleft[] += readbytes!(s.stream, sub(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE))
+    s.inbytesleft[] += readbytes!(s.stream, view(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE))
     iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
 end
 
@@ -449,7 +453,7 @@ end
     decode([T,] a::Vector{UInt8}, enc)
 
 Convert an array of bytes `a` representing text in encoding `enc` to a string of type `T`.
-By default, a `UTF8String` is returned.
+By default, a `String` is returned.
 
 `enc` can be specified either as a string or as an `Encoding` object.
 
@@ -486,7 +490,7 @@ end
 
 encode(s::AbstractString, enc::AbstractString) = encode(s, Encoding(enc))
 
-function test_encoding(enc::ASCIIString)
+function test_encoding(enc::String)
     # We assume that an encoding is supported if it's possible to convert from it to UTF-8:
     cd = ccall((:iconv_open, libiconv), Ptr{Void}, (Cstring, Cstring), enc, "UTF-8")
     if cd == Ptr{Void}(-1)

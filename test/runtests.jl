@@ -1,5 +1,6 @@
 using Base.Test
-import Compat: readstring
+using Compat: readstring
+using LegacyStrings: UTF8String, UTF16String, UTF32String
 using StringEncodings
 
 for s in ("", "\0", "a", "café crème",
@@ -89,18 +90,14 @@ catch err
         "Byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
 end
 
-# win_iconv currently does not throw an error on bytes >= 0x80 in ASCII sources
-# https://github.com/win-iconv/win-iconv/pull/26
-if OS_NAME != :Windows
-    @test_throws InvalidSequenceError decode(b"qwertyé€", "ASCII")
-    try
-        decode(b"qwertyé€", "ASCII")
-    catch err
-         io = IOBuffer()
-         showerror(io, err)
-         @test takebuf_string(io) ==
-             "Byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
-    end
+@test_throws InvalidSequenceError decode(b"qwertyé€", "ASCII")
+try
+    decode(b"qwertyé€", "ASCII")
+catch err
+     io = IOBuffer()
+     showerror(io, err)
+     @test takebuf_string(io) ==
+         "Byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
 end
 
 let x = encode("ÄÆä", "ISO-8859-1")
