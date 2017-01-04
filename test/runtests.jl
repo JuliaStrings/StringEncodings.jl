@@ -54,7 +54,7 @@ let s = "a string チャネルパートナーの選択", a = Vector{UInt8}(s)
         @test isa(err, IncompleteSequenceError)
         io = IOBuffer()
         showerror(io, err)
-        @test takebuf_string(io) == "Incomplete byte sequence at end of input"
+        @test String(take!(io)) == "Incomplete byte sequence at end of input"
     end
 
     b = IOBuffer(encode(s, "UTF-16LE")[1:19])
@@ -86,7 +86,7 @@ try
 catch err
      io = IOBuffer()
      showerror(io, err)
-     @test takebuf_string(io) ==
+     @test String(take!(io)) ==
         "Byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
 end
 
@@ -96,7 +96,7 @@ try
 catch err
      io = IOBuffer()
      showerror(io, err)
-     @test takebuf_string(io) ==
+     @test String(take!(io)) ==
          "Byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
 end
 
@@ -107,7 +107,7 @@ let x = encode("ÄÆä", "ISO-8859-1")
     catch err
          io = IOBuffer()
          showerror(io, err)
-         @test takebuf_string(io) ==
+         @test String(take!(io)) ==
              "Byte sequence 0xc4c6e4 is invalid in source encoding or cannot be represented in target encoding"
     end
 end
@@ -128,7 +128,7 @@ catch err
     @test isa(err, InvalidEncodingError)
     io = IOBuffer()
     showerror(io, err)
-    @test takebuf_string(io) ==
+    @test String(take!(io)) ==
         "Conversion from absurd_encoding to nonexistent_encoding not supported by iconv implementation, check that specified encodings are correct"
 end
 try
@@ -137,7 +137,7 @@ catch err
     @test isa(err, InvalidEncodingError)
     io = IOBuffer()
     showerror(io, err)
-    @test takebuf_string(io) ==
+    @test String(take!(io)) ==
         "Conversion from nonexistent_encoding to absurd_encoding not supported by iconv implementation, check that specified encodings are correct"
 end
 
@@ -189,7 +189,7 @@ end
 ## Test encodings support
 b = IOBuffer()
 show(b, enc"UTF-8")
-@test takebuf_string(b) == "UTF-8 string encoding"
+@test String(take!(b)) == "UTF-8 string encoding"
 @test string(enc"UTF-8") == "UTF-8"
 
 encodings_list = encodings()
