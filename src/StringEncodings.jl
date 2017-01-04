@@ -485,7 +485,7 @@ function encode(s::AbstractString, enc::Encoding)
     p = StringEncoder(b, enc, encoding(typeof(s)))
     write(p, s)
     flush(p)
-    takebuf_array(b)
+    take!(b)
 end
 
 encode(s::AbstractString, enc::AbstractString) = encode(s, Encoding(enc))
