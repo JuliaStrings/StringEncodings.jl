@@ -29,10 +29,10 @@ for (s, enc) in (("noël", "ISO-8859-1"),
 end
 
 # Test that attempt to close stream in the middle of incomplete sequence throws
-let s = "a string チャネルパートナーの選択"
+let s = "a string チャネルパートナーの選択", a = Vector{UInt8}(s)
     # First, correct version
     p = StringEncoder(IOBuffer(), "UTF-16LE")
-    write(p, s.data)
+    write(p, a)
     close(p)
     # Test that closed pipe behaves correctly
     @test_throws ArgumentError write(p, 'a')
@@ -40,14 +40,14 @@ let s = "a string チャネルパートナーの選択"
     b = IOBuffer()
     p = StringEncoder(b, "UTF-16LE")
     @test string(p) == "StringEncoder{UTF-8, UTF-16LE}($(string(b)))"
-    write(p, s.data[1:10])
+    write(p, a[1:10])
     @test_throws IncompleteSequenceError close(p)
     # Test that closed pipe behaves correctly even after an error
     @test_throws ArgumentError write(p, 'a')
 
     # This time, call show
     p = StringEncoder(IOBuffer(), "UTF-16LE")
-    write(p, s.data[1:10])
+    write(p, a[1:10])
     try
         close(p)
     catch err

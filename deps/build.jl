@@ -18,9 +18,9 @@ function validate_iconv(n, h)
     cd == Ptr{Void}(-1) && return false
 
     s = "café"
-    a = similar(s.data)
-    inbufptr = Ref{Ptr{UInt8}}(pointer(s.data))
-    inbytesleft = Ref{Csize_t}(length(s.data))
+    a = Vector{UInt8}(sizeof(s))
+    inbufptr = Ref{Ptr{UInt8}}(pointer(s))
+    inbytesleft = Ref{Csize_t}(sizeof(s))
     outbufptr = Ref{Ptr{UInt8}}(pointer(a))
     outbytesleft = Ref{Csize_t}(length(a))
     ret = ccall(Libdl.dlsym_e(h, "iconv"), Csize_t,
