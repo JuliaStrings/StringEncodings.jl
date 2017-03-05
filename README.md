@@ -37,7 +37,7 @@ julia> decode(ans, "UTF-16")
 Use the `encodings` function to get the list of all supported encodings on the current platform:
 ```julia
 julia> encodings()
-1241-element Array{ASCIIString,1}:
+1241-element Array{String,1}:
  "1026"             
  "1046"             
  "1047"             
@@ -83,7 +83,7 @@ julia> write(f, "café\nnoël")
 julia> close(f); # Essential to complete encoding
 ```
 
-The contents of the file can then be read back using `readstring` (or `readall` under Julia 0.4):
+The contents of the file can then be read back using `readstring`:
 ```julia
 julia> readstring(path) # Standard function expects UTF-8
 "\U3d83f7c0f\0澊\0n\0o\0迬\0"
@@ -98,7 +98,7 @@ julia> readline(path, enc"UTF-16")
 "café\n"
 
 julia> readlines(path, enc"UTF-16")
-2-element Array{ByteString,1}:
+2-element Array{String,1}:
  "café\n"
  "noël"  
 
