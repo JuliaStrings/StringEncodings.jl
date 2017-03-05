@@ -2,7 +2,7 @@
 
 module StringEncodings
 using Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
-using Compat: String, ASCIIString, UTF8String, view
+using Compat: @compat
 
 import Base: close, eachline, eof, flush, isreadable, iswritable,
              open, readline, readlines, readuntil, show, write
@@ -16,24 +16,24 @@ include("encodings.jl")
 using StringEncodings.Encodings
 export encoding, encodings_list, Encoding, @enc_str
 
-abstract StringEncodingError
+@compat abstract type StringEncodingError end
 
 # Specified encodings or the combination are not supported by iconv
 type InvalidEncodingError <: StringEncodingError
-    args::Tuple{ASCIIString, ASCIIString}
+    args::Tuple{String, String}
 end
 InvalidEncodingError(from, to) = InvalidEncodingError((from, to))
 message(::Type{InvalidEncodingError}) = "Conversion from <<1>> to <<2>> not supported by iconv implementation, check that specified encodings are correct"
 
 # Encountered invalid byte sequence
 type InvalidSequenceError <: StringEncodingError
-    args::Tuple{ASCIIString}
+    args::Tuple{String}
 end
 InvalidSequenceError(seq::Vector{UInt8}) = InvalidSequenceError((bytes2hex(seq),))
 message(::Type{InvalidSequenceError}) = "Byte sequence 0x<<1>> is invalid in source encoding or cannot be represented in target encoding"
 
 type IConvError <: StringEncodingError
-    args::Tuple{ASCIIString, Int, ASCIIString}
+    args::Tuple{String, Int, String}
 end
 IConvError(func::String) = IConvError((func, errno(), strerror(errno())))
 message(::Type{IConvError}) = "<<1>>: <<2>> (<<3>>)"
@@ -434,16 +434,30 @@ Methods to read text in character encoding `enc`.
 readuntil(s::IO, enc::Encoding, delim) = readuntil(StringDecoder(s, enc), delim)
 readuntil(filename::AbstractString, enc::Encoding, delim) = open(io->readuntil(io, enc, delim), filename)
 
-"""
-    eachline(stream::IO, enc::Encoding)
-    eachline(filename::AbstractString, enc::Encoding)
+if VERSION >= v"0.6.0-dev.2467"
+    """
+        eachline(stream::IO, enc::Encoding; chomp=true)
+        eachline(filename::AbstractString, enc::Encoding; chomp=true)
 
-Methods to read text in character encoding `enc`. Decoding is performed on the fly.
-"""
-eachline(s::IO, enc::Encoding) = eachline(StringDecoder(s, enc))
-function eachline(filename::AbstractString, enc::Encoding)
-    s = open(filename, enc)
-    EachLine(s, ()->close(s))
+    Methods to read text in character encoding `enc`. Decoding is performed on the fly.
+    """
+    eachline(s::IO, enc::Encoding; chomp=true) = eachline(StringDecoder(s, enc); chomp=true)
+    function eachline(filename::AbstractString, enc::Encoding; chomp=true)
+        s = open(filename, enc)
+            EachLine(s, ondone=()->close(s), chomp=chomp)
+    end
+else
+    """
+        eachline(stream::IO, enc::Encoding)
+        eachline(filename::AbstractString, enc::Encoding)
+
+    Methods to read text in character encoding `enc`. Decoding is performed on the fly.
+    """
+    eachline(s::IO, enc::Encoding) = eachline(StringDecoder(s, enc))
+    function eachline(filename::AbstractString, enc::Encoding)
+        s = open(filename, enc)
+            EachLine(s, ()->close(s))
+    end
 end
 
 
@@ -471,8 +485,8 @@ end
 
 decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::AbstractString) = decode(T, a, Encoding(enc))
 
-decode(a::Vector{UInt8}, enc::AbstractString) = decode(UTF8String, a, Encoding(enc))
-decode(a::Vector{UInt8}, enc::Union{AbstractString, Encoding}) = decode(UTF8String, a, enc)
+decode(a::Vector{UInt8}, enc::AbstractString) = decode(String, a, Encoding(enc))
+decode(a::Vector{UInt8}, enc::Union{AbstractString, Encoding}) = decode(String, a, enc)
 
 """
     encode(s::AbstractString, enc)

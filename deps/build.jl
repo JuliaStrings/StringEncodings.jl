@@ -34,7 +34,7 @@ end
 libiconv = library_dependency("libiconv", aliases = ["libc", "iconv"],
                               validate = validate_iconv)
 
-@windows_only begin
+if is_windows()
     using WinRPM
     provides(WinRPM.RPM, "win_iconv-dll", libiconv, os = :Windows)
 end

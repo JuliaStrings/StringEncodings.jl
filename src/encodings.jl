@@ -4,13 +4,10 @@
 
 module Encodings
 
-using Compat
 import Base: show, print, convert
 export encoding, encodings_list, Encoding, @enc_str
 
-if VERSION >= v"0.5.0-"
-    using LegacyStrings: ASCIIString, UTF8String, UTF16String, UTF32String
-end
+using LegacyStrings: ASCIIString, UTF8String, UTF16String, UTF32String
 
 immutable Encoding{enc} end
 
@@ -26,10 +23,7 @@ print{enc}(io::IO, ::Encoding{enc}) = print(io, enc)
 
 
 ## Get the encoding used by a string type
-if VERSION >= v"0.5.0-"
-    encoding(::Type{String})  = enc"UTF-8"
-end
-
+encoding(::Type{String})  = enc"UTF-8"
 encoding(::Type{ASCIIString}) = enc"ASCII"
 encoding(::Type{UTF8String})  = enc"UTF-8"
 

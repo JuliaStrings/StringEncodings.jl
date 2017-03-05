@@ -158,15 +158,24 @@ mktemp() do path, io
     @test readuntil(path, enc"ISO-2022-JP", "チャ") == "a string \0チャ"
     @test open(io->readuntil(io, enc"ISO-2022-JP", "チャ"), path) == "a string \0チャ"
 
-    @test readline(path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
-    @test open(readline, path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
+    if VERSION >= v"0.6.0-dev.2467"
+        @test readline(path, enc"ISO-2022-JP") == split(s, '\n')[1]
+        @test open(readline, path, enc"ISO-2022-JP") == split(s, '\n')[1]
+    else
+        @test readline(path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
+        @test open(readline, path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
+    end
     a = readlines(path, enc"ISO-2022-JP")
     b = open(readlines, path, enc"ISO-2022-JP")
 
     c = collect(eachline(path, enc"ISO-2022-JP"))
     d = open(io->collect(eachline(io, enc"ISO-2022-JP")), path)
 
-    @test a[1] == b[1] == c[1] == d[1] == string(split(s, '\n')[1], '\n')
+    if VERSION >= v"0.6.0-dev.2467"
+        @test a[1] == b[1] == c[1] == d[1] == split(s, '\n')[1]
+    else
+        @test a[1] == b[1] == c[1] == d[1] == string(split(s, '\n')[1], '\n')
+    end
     @test a[2] == b[2] == c[2] == d[2] == split(s, '\n')[2]
 
     # Test alternative syntaxes for open()
