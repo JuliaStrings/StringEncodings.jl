@@ -9,7 +9,7 @@
 [![Julia 0.5 Status](http://pkg.julialang.org/badges/StringEncodings_0.5.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.5)
 [![Julia 0.6 Status](http://pkg.julialang.org/badges/StringEncodings_0.6.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.6)
 
-This Julia package provides support for decoding and encoding texts between multiple character encodings. It it currently based on the iconv interface, and supports all major platforms (on Windows, it uses the native OS API via [win_iconv](https://github.com/win-iconv/win-iconv/)). In the future, native Julia support for major encodings will be added.
+This Julia package provides support for decoding and encoding texts between multiple character encodings. It is currently based on the iconv interface, and supports all major platforms (on Windows, it uses the native OS API via [win_iconv](https://github.com/win-iconv/win-iconv/)). In the future, native Julia support for major encodings will be added.
 
 ## Encoding and Decoding Strings
 *Encoding* a refers to the process of converting a string (of any `AbstractString` type) to a sequence of bytes represented as a `Vector{UInt8}`. *Decoding* refers to the inverse process.
