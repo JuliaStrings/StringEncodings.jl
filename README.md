@@ -5,7 +5,6 @@
 [![Coveralls Coverage Status](https://coveralls.io/repos/nalimilan/StringEncodings.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/nalimilan/StringEncodings.jl?branch=master)
 [![Codecov Coverage Status](http://codecov.io/github/nalimilan/StringEncodings.jl/coverage.svg?branch=master)](http://codecov.io/github/nalimilan/StringEncodings.jl?branch=master)
 
-[![Julia 0.4 Status](http://pkg.julialang.org/badges/StringEncodings_0.4.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.4)
 [![Julia 0.5 Status](http://pkg.julialang.org/badges/StringEncodings_0.5.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.5)
 [![Julia 0.6 Status](http://pkg.julialang.org/badges/StringEncodings_0.6.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.6)
 
