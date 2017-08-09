@@ -152,4 +152,4 @@ Conversion currently raises an error if an invalid byte sequence is encountered 
 
 ## Notes on Installation on Linux OS
 
-Most Linux distributions provide `iconv` functionalities as part of the base operating system library `libc`. In normal circumstances, no additional installation of `libiconv` may be required by downloading it from the GNU repository and building from the sources. If you observe such a behavior on your operating system, file an issue with OS details.
+Most Linux distributions provide `iconv` functionalities as part of the base operating system library `glibc`. In normal circumstances, no additional installation of `libiconv` should be required. If you observe such a behavior on your operating system, file an issue with OS details.
