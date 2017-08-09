@@ -149,3 +149,7 @@ julia> readstring(s) # Decoding happens automatically here
 Do not forget to call `close` on `StringEncoder` and `StringDecoder` objects to finish the encoding process. For `StringEncoder`, this function calls `flush`, which writes any characters still in the buffer, and possibly some control sequences (for stateful encodings). For both `StringEncoder` and `StringDecoder`, `close` checks that there are no incomplete sequences left in the input stream, and raise an `IncompleteSequenceError` if that's the case. It will also free iconv resources immediately, instead of waiting for garbage collection.
 
 Conversion currently raises an error if an invalid byte sequence is encountered in the input, or if some characters cannot be represented in the target enconding. It is not yet possible to ignore such characters or to replace them with a placeholder.
+
+## Notes on Installation on Linux OS
+
+Most Linux distributions provide `iconv` functionalities as part of the base operating system library `libc`. In normal circumstances, no additional installation of `libiconv` may be required by downloading it from the GNU repository and building from the sources. If you observe such a behavior on your operating system, file an issue with OS details.
