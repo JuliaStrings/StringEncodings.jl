@@ -31,7 +31,7 @@ function validate_iconv(n, h)
     return ret == -1 % Csize_t && Libc.errno() == Libc.EILSEQ
 end
 
-libiconv = library_dependency("libiconv", aliases = ["libc", "iconv"],
+libiconv = library_dependency("libiconv", aliases = ["libc", "libc-bin", "iconv"],
                               validate = validate_iconv)
 
 if is_windows()
