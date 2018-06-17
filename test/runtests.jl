@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using StringEncodings
 
 # Test round-trip to Unicode formats
@@ -147,27 +147,27 @@ mktemp() do path, io
 
     @test readuntil(path, enc"ISO-2022-JP", '\0') == "a string "
     @test open(io->readuntil(io, enc"ISO-2022-JP", '\0'), path) == "a string "
+    @test open(io->readuntil(io, enc"ISO-2022-JP", '\0', keep=true), path) == "a string \0"
     @test readuntil(path, enc"ISO-2022-JP", "チャ") == "a string \0"
     @test open(io->readuntil(io, enc"ISO-2022-JP", "チャ"), path) == "a string \0"
+    @test open(io->readuntil(io, enc"ISO-2022-JP", "チャ", keep=true), path) == "a string \0チャ"
 
-    if VERSION >= v"0.6.0-dev.2467"
-        @test readline(path, enc"ISO-2022-JP") == split(s, '\n')[1]
-        @test open(readline, path, enc"ISO-2022-JP") == split(s, '\n')[1]
-    else
-        @test readline(path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
-        @test open(readline, path, enc"ISO-2022-JP") == string(split(s, '\n')[1], '\n')
-    end
+    @test readline(path, enc"ISO-2022-JP") == split(s, '\n')[1]
+    @test readline(path, enc"ISO-2022-JP", keep=true) == split(s, '\n', )[1] * '\n'
+    @test open(readline, path, enc"ISO-2022-JP") == split(s, '\n')[1]
+
     a = readlines(path, enc"ISO-2022-JP")
     b = open(readlines, path, enc"ISO-2022-JP")
-
     c = collect(eachline(path, enc"ISO-2022-JP"))
     d = open(io->collect(eachline(io, enc"ISO-2022-JP")), path)
+    @test a[1] == b[1] == c[1] == d[1] == split(s, '\n')[1]
+    @test a[2] == b[2] == c[2] == d[2] == split(s, '\n')[2]
 
-    if VERSION >= v"0.6.0-dev.2467"
-        @test a[1] == b[1] == c[1] == d[1] == split(s, '\n')[1]
-    else
-        @test a[1] == b[1] == c[1] == d[1] == string(split(s, '\n')[1], '\n')
-    end
+    a = readlines(path, enc"ISO-2022-JP", keep=true)
+    b = open(io->readlines(io, keep=true), path, enc"ISO-2022-JP")
+    c = collect(eachline(path, enc"ISO-2022-JP", keep=true))
+    d = open(io->collect(eachline(io, enc"ISO-2022-JP", keep=true)), path)
+    @test a[1] == b[1] == c[1] == d[1] == split(s, '\n')[1] * '\n'
     @test a[2] == b[2] == c[2] == d[2] == split(s, '\n')[2]
 
     # Test alternative syntaxes for open()

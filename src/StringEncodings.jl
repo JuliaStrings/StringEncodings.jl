@@ -413,38 +413,45 @@ Base.read(s::IO, ::Type{String}, enc::Encoding) = read(StringDecoder(s, enc), St
 Base.read(filename::AbstractString, ::Type{String}, enc::Encoding) = open(io->read(io, String, enc), filename)
 
 """
-    readline(stream::IO, enc::Encoding)
-    readline(filename::AbstractString, enc::Encoding)
+    readline(stream::IO, enc::Encoding; keep::Bool=false)
+    readline(filename::AbstractString, enc::Encoding; keep::Bool=false)
 
 Methods to read text in character encoding `enc`.
 """
-readline(s::IO, enc::Encoding) = readline(StringDecoder(s, enc))
-readline(filename::AbstractString, enc::Encoding) = open(io->readline(io, enc), filename)
+readline(s::IO, enc::Encoding; keep::Bool=false) =
+    readline(StringDecoder(s, enc), keep=keep)
+readline(filename::AbstractString, enc::Encoding; keep::Bool=false) =
+    open(io->readline(io, enc, keep=keep), filename)
 
 """
-    readlines(stream::IO, enc::Encoding)
-    readlines(filename::AbstractString, enc::Encoding)
-
-Methods to read text in character encoding `enc`.
-"""
-readlines(s::IO, enc::Encoding) = readlines(StringDecoder(s, enc))
-readlines(filename::AbstractString, enc::Encoding) = open(io->readlines(io, enc), filename)
-
-"""
-    readuntil(stream::IO, enc::Encoding, delim)
-    readuntil(filename::AbstractString, enc::Encoding, delim)
+    readlines(stream::IO, enc::Encoding; keep::Bool=false)
+    readlines(filename::AbstractString, enc::Encoding; keep::Bool=false)
 
 Methods to read text in character encoding `enc`.
 """
-readuntil(s::IO, enc::Encoding, delim) = readuntil(StringDecoder(s, enc), delim)
-readuntil(filename::AbstractString, enc::Encoding, delim) = open(io->readuntil(io, enc, delim), filename)
+readlines(s::IO, enc::Encoding; keep::Bool=false) =
+    readlines(StringDecoder(s, enc), keep=keep)
+readlines(filename::AbstractString, enc::Encoding; keep::Bool=false) =
+    open(io->readlines(io, enc, keep=keep), filename)
+
+"""
+    readuntil(stream::IO, enc::Encoding, delim; keep::Bool=false)
+    readuntil(filename::AbstractString, enc::Encoding, delim; keep::Bool=false)
+
+Methods to read text in character encoding `enc`.
+"""
+readuntil(s::IO, enc::Encoding, delim; keep::Bool=false) =
+    readuntil(StringDecoder(s, enc), delim, keep=keep)
+readuntil(filename::AbstractString, enc::Encoding, delim; keep::Bool=false) =
+    open(io->readuntil(io, enc, delim, keep=keep), filename)
 
 """
     eachline(stream::IO, enc::Encoding; keep=false)
     eachline(filename::AbstractString, enc::Encoding; keep=false)
+
 Methods to read text in character encoding `enc`. Decoding is performed on the fly.
 """
-eachline(s::IO, enc::Encoding; keep=false) = eachline(StringDecoder(s, enc); keep=false)
+eachline(s::IO, enc::Encoding; keep=false) = eachline(StringDecoder(s, enc), keep=keep)
 function eachline(filename::AbstractString, enc::Encoding; keep=false)
     s = open(filename, enc)
     Base.EachLine(s, ondone=()->close(s), keep=keep)
