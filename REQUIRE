@@ -1,5 +1,4 @@
-julia 0.5
-BinDeps
+julia 0.6
+BinaryProvider 0.3.0
 Compat 0.17.0
-@windows WinRPM
 LegacyStrings 0.1.1

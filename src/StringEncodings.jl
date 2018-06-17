@@ -1,6 +1,20 @@
 # This file is a part of StringEncodings.jl. License is MIT: http://julialang.org/license
 
 module StringEncodings
+
+# Load in `deps.jl`, complaining if it does not exist
+const depsjl_path = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
+if !isfile(depsjl_path)
+    error("iconv not installed properly, run Pkg.build(\"StringEncodings\"), restart Julia and try again")
+end
+include(depsjl_path)
+
+# Module initialization function
+function __init__()
+    # Always check dependencies from `deps.jl`
+    check_deps()
+end
+
 using Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 using Compat: @compat
 
@@ -56,21 +70,18 @@ end
 show{T<:Union{IncompleteSequenceError,OutputBufferError}}(io::IO, exc::T) =
     print(io, message(T))
 
-depsjl = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
-isfile(depsjl) ? include(depsjl) : error("libiconv not properly installed. Please run\nPkg.build(\"StringEncodings\")")
-
 
 ## iconv wrappers
 
 function iconv_close(cd::Ptr{Void})
     if cd != C_NULL
-        ccall((:iconv_close, libiconv), Cint, (Ptr{Void},), cd) == 0 ||
+        ccall((iconv_close_s, libiconv), Cint, (Ptr{Void},), cd) == 0 ||
             throw(IConvError("iconv_close"))
     end
 end
 
 function iconv_open(tocode::String, fromcode::String)
-    p = ccall((:iconv_open, libiconv), Ptr{Void}, (Cstring, Cstring), tocode, fromcode)
+    p = ccall((iconv_open_s, libiconv), Ptr{Void}, (Cstring, Cstring), tocode, fromcode)
     if p != Ptr{Void}(-1)
         return p
     elseif errno() == EINVAL
@@ -133,7 +144,7 @@ function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
     inbytesleft_orig = inbytesleft[]
     outbytesleft[] = BUFSIZE
 
-    ret = ccall((:iconv, libiconv), Csize_t,
+    ret = ccall((iconv_s, libiconv), Csize_t,
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 cd, inbufptr, inbytesleft, outbufptr, outbytesleft)
 
@@ -165,7 +176,7 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
 
     s.outbufptr[] = pointer(s.outbuf)
     s.outbytesleft[] = BUFSIZE
-    ret = ccall((:iconv, libiconv), Csize_t,
+    ret = ccall((iconv_s, libiconv), Csize_t,
                 (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 s.cd, C_NULL, C_NULL, s.outbufptr, s.outbytesleft)
 
@@ -506,7 +517,7 @@ encode(s::AbstractString, enc::AbstractString) = encode(s, Encoding(enc))
 
 function test_encoding(enc::String)
     # We assume that an encoding is supported if it's possible to convert from it to UTF-8:
-    cd = ccall((:iconv_open, libiconv), Ptr{Void}, (Cstring, Cstring), enc, "UTF-8")
+    cd = ccall((iconv_open_s, libiconv), Ptr{Void}, (Cstring, Cstring), enc, "UTF-8")
     if cd == Ptr{Void}(-1)
         return false
     else
