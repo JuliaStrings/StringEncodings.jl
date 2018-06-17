@@ -36,27 +36,26 @@ julia> decode(ans, "UTF-16")
 Use the `encodings` function to get the list of all supported encodings on the current platform:
 ```julia
 julia> encodings()
-1241-element Array{String,1}:
- "1026"             
- "1046"             
- "1047"             
- "10646-1:1993"     
- "10646-1:1993/UCS4"
- "437"              
- "500"              
- "500V1"            
- "850"              
- "851"              
- ⋮                  
- "windows-1258"     
- "WINDOWS-1258"     
- "WINDOWS-31J"      
- "windows-874"      
- "WINDOWS-874"      
- "WINDOWS-936"      
- "WINSAMI2"         
- "WS2"              
- "YU"               
+411-element Array{String,1}:
+ "850"
+ "862"
+ "866"
+ "ANSI_X3.4-1968"
+ "ANSI_X3.4-1986"
+ "ARABIC"
+ "ARMSCII-8"
+ "ASCII"
+ "ASMO-708"
+ ⋮
+ "WINDOWS-1257"
+ "windows-1258"
+ "WINDOWS-1258"
+ "windows-874"
+ "WINDOWS-874"
+ "WINDOWS-936"
+ "X0201"
+ "X0208"
+ "X0212"
 ```
 
 (Note that many of these are aliases for standard names.)
@@ -77,7 +76,7 @@ julia> path = tempname();
 
 julia> f = open(path, enc"UTF-16", "w");
 
-julia> write(f, "café\nnoël")
+julia> write(f, "café\nnoël");
 
 julia> close(f); # Essential to complete encoding
 ```
@@ -85,7 +84,7 @@ julia> close(f); # Essential to complete encoding
 The contents of the file can then be read back using `read(path, String)`:
 ```julia
 julia> read(path, String) # Standard function expects UTF-8
-"\U3d83f7c0f\0澊\0n\0o\0迬\0"
+"\xfe\xff\0c\0a\0f\0\xe9\0\n\0n\0o\0\xeb\0l"
 
 julia> read(path, String, enc"UTF-16") # Works when passing the correct encoding
 "café\nnoël"
@@ -94,20 +93,20 @@ julia> read(path, String, enc"UTF-16") # Works when passing the correct encoding
 Other variants of standard convenience functions are provided:
 ```julia
 julia> readline(path, enc"UTF-16")
-"café\n"
+"café"
 
 julia> readlines(path, enc"UTF-16")
 2-element Array{String,1}:
- "café\n"
+ "café"
  "noël"  
 
 julia> for l in eachline(path, enc"UTF-16")
-           print(l)
+           println(l)
        end
 café
 noël
 
-julia> readuntil(path, enc"UTF-16", "o")
+julia> readuntil(path, enc"UTF-16", "ë")
 "café\nno"
 ```
 
@@ -121,6 +120,8 @@ julia> read(io, String)
 
 In particular, this method allows reading encoded comma-separated values (CSV) and other character-delimited text files:
 ```julia
+julia> using DelimitedFiles
+
 julia> open(readcsv, path, enc"UTF-16")
 2x1 Array{Any,2}:
  "café"
