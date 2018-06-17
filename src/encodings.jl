@@ -7,33 +7,22 @@ module Encodings
 import Base: show, print, convert
 export encoding, encodings_list, Encoding, @enc_str
 
-using LegacyStrings: ASCIIString, UTF8String, UTF16String, UTF32String
-
-immutable Encoding{enc} end
+struct Encoding{enc} end
 
 Encoding(s) = Encoding{Symbol(s)}()
 macro enc_str(s)
     :(Encoding{$(Expr(:quote, Symbol(s)))}())
 end
 
-convert{T<:AbstractString, enc}(::Type{T}, ::Encoding{enc}) = string(enc)
+convert(::Type{T}, ::Encoding{enc}) where {T<:AbstractString, enc} = string(enc)
+Base.String(::Encoding{enc}) where {enc} = string(enc)
 
-show{enc}(io::IO, ::Encoding{enc}) = print(io, string(enc), " string encoding")
-print{enc}(io::IO, ::Encoding{enc}) = print(io, enc)
+show(io::IO, ::Encoding{enc}) where {enc} = print(io, string(enc), " string encoding")
+print(io::IO, ::Encoding{enc}) where {enc} = print(io, enc)
 
 
 ## Get the encoding used by a string type
 encoding(::Type{String})  = enc"UTF-8"
-encoding(::Type{ASCIIString}) = enc"ASCII"
-encoding(::Type{UTF8String})  = enc"UTF-8"
-
-if ENDIAN_BOM == 0x04030201
-    encoding(::Type{UTF16String}) = enc"UTF-16LE"
-    encoding(::Type{UTF32String}) = enc"UTF-32LE"
-else
-    encoding(::Type{UTF16String}) = enc"UTF-16BE"
-    encoding(::Type{UTF32String}) = enc"UTF-32BE"
-end
 
 encodings_list = ["1026", "1046", "1047", "10646-1:1993", "10646-1:1993/UCS4",
                   "437", "500", "500V1", "850", "851", "852", "855", "856", "857",

@@ -1,9 +1,9 @@
 # StringEncodings
 
-[![Travis CI Build Status](https://travis-ci.org/nalimilan/StringEncodings.jl.svg?branch=master)](https://travis-ci.org/nalimilan/StringEncodings.jl)
+[![Travis CI Build Status](https://travis-ci.org/JuliaStrings/StringEncodings.jl.svg?branch=master)](https://travis-ci.org/JuliaStrings/StringEncodings.jl)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/3gslhfg91isldnvq?svg=true)](https://ci.appveyor.com/project/nalimilan/stringencodings-jl)
-[![Coveralls Coverage Status](https://coveralls.io/repos/nalimilan/StringEncodings.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/nalimilan/StringEncodings.jl?branch=master)
-[![Codecov Coverage Status](http://codecov.io/github/nalimilan/StringEncodings.jl/coverage.svg?branch=master)](http://codecov.io/github/nalimilan/StringEncodings.jl?branch=master)
+[![Coveralls Coverage Status](https://coveralls.io/repos/JuliaStrings/StringEncodings.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaStrings/StringEncodings.jl?branch=master)
+[![Codecov Coverage Status](http://codecov.io/github/JuliaStrings/StringEncodings.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaStrings/StringEncodings.jl?branch=master)
 
 [![Julia 0.6 Status](http://pkg.julialang.org/badges/StringEncodings_0.6.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.6)
 [![Julia 0.7 Status](http://pkg.julialang.org/badges/StringEncodings_0.7.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.7)
@@ -82,12 +82,12 @@ julia> write(f, "café\nnoël")
 julia> close(f); # Essential to complete encoding
 ```
 
-The contents of the file can then be read back using `readstring`:
+The contents of the file can then be read back using `read(path, String)`:
 ```julia
-julia> readstring(path) # Standard function expects UTF-8
+julia> read(path, String) # Standard function expects UTF-8
 "\U3d83f7c0f\0澊\0n\0o\0迬\0"
 
-julia> readstring(path, enc"UTF-16") # Works when passing the correct encoding
+julia> read(path, String, enc"UTF-16") # Works when passing the correct encoding
 "café\nnoël"
 ```
 
@@ -115,7 +115,7 @@ When performing more complex operations on an encoded text file, it will often b
 ```julia
 julia> io = open(path, enc"UTF-16");
 
-julia> readstring(io)
+julia> read(io, String)
 "café\nnoël"
 ```
 
@@ -142,7 +142,7 @@ julia> seek(b, 0); # Move to start of buffer
 
 julia> s = StringDecoder(b, "UTF-16");
 
-julia> readstring(s) # Decoding happens automatically here
+julia> read(s, String) # Decoding happens automatically here
 "café"
 ```
 

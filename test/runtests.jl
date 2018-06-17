@@ -1,23 +1,15 @@
 using Base.Test
-using Compat: readstring
-using LegacyStrings: UTF8String, UTF16String, UTF32String
 using StringEncodings
 
+# Test round-trip to Unicode formats
 for s in ("", "\0", "a", "café crème",
           "a"^(StringEncodings.BUFSIZE-1) * "€ with an incomplete codepoint between two input buffer fills",
           "a string € チャネルパートナーの選択",
-          "a string \0€ チャネルパ\0ー\0トナーの選択 with embedded and trailing nuls\0")
-    # Test round-trip to Unicode formats, checking against pure-Julia implementation
-    for (T, nullen) in ((UTF8String, 0), (UTF16String, 2), (UTF32String, 4))
-        enc = StringEncodings.encoding(T)
-        a = reinterpret(UInt8, T(s).data)
-        # Adjust for explicit \0 only for .data on UTF16String/UTF32String
-        a = a[1:end - nullen]
-        @test decode(a, enc) == s
-        @test decode(UTF16String, a, enc) == s
-        @test decode(UTF32String, a, enc) == s
-        @test decode(encode(s, enc), enc) == s
-    end
+          "a string \0€ チャネルパ\0ー\0トナーの選択 with embedded and trailing nuls\0"),
+    enc in (enc"UTF-8", enc"UTF-16", enc"UTF-16LE", enc"UTF-16BE", enc"UTF-32")
+    a = encode(s, enc)
+    @test decode(a, enc) == s
+    @test decode(encode(s, enc), enc) == s
 end
 
 # Test a few non-Unicode encodings
@@ -60,7 +52,7 @@ let s = "a string チャネルパートナーの選択", a = Vector{UInt8}(s)
     b = IOBuffer(encode(s, "UTF-16LE")[1:19])
     p = StringDecoder(b, "UTF-16LE")
     @test string(p) == "StringDecoder{UTF-16LE, UTF-8}($(string(b)))"
-    @test readstring(p) == s[1:9]
+    @test read(p, String) == s[1:9]
     @test_throws IncompleteSequenceError close(p)
     # Test that closed pipe behaves correctly even after an error
     @test eof(p)
@@ -90,9 +82,9 @@ catch err
         "Byte sequence 0xc3a9e282ac is invalid in source encoding or cannot be represented in target encoding"
 end
 
-@test_throws InvalidSequenceError decode(b"qwertyé€", "ASCII")
+@test_throws InvalidSequenceError decode(Vector{UInt8}("qwertyé€"), "ASCII")
 try
-    decode(b"qwertyé€", "ASCII")
+    decode(Vector{UInt8}("qwertyé€"), "ASCII")
 catch err
      io = IOBuffer()
      showerror(io, err)
@@ -116,7 +108,7 @@ mktemp() do p, io
     s = "café crème"
     write(io, encode(s, "CP1252"))
     close(io)
-    @test readstring(p, enc"CP1252") == s
+    @test read(p, String, enc"CP1252") == s
 end
 
 @test_throws InvalidEncodingError p = StringEncoder(IOBuffer(), "nonexistent_encoding")
@@ -149,14 +141,14 @@ mktemp() do path, io
         write(io, s)
     end
 
-    @test readstring(path, enc"ISO-2022-JP") == s
-    @test open(io->readstring(io, enc"ISO-2022-JP"), path) == s
-    @test open(readstring, path, enc"ISO-2022-JP") == s
+    @test read(path, String, enc"ISO-2022-JP") == s
+    @test open(io->read(io, String, enc"ISO-2022-JP"), path) == s
+    @test open(io->read(io, String), path, enc"ISO-2022-JP") == s
 
-    @test readuntil(path, enc"ISO-2022-JP", '\0') == "a string \0"
-    @test open(io->readuntil(io, enc"ISO-2022-JP", '\0'), path) == "a string \0"
-    @test readuntil(path, enc"ISO-2022-JP", "チャ") == "a string \0チャ"
-    @test open(io->readuntil(io, enc"ISO-2022-JP", "チャ"), path) == "a string \0チャ"
+    @test readuntil(path, enc"ISO-2022-JP", '\0') == "a string "
+    @test open(io->readuntil(io, enc"ISO-2022-JP", '\0'), path) == "a string "
+    @test readuntil(path, enc"ISO-2022-JP", "チャ") == "a string \0"
+    @test open(io->readuntil(io, enc"ISO-2022-JP", "チャ"), path) == "a string \0"
 
     if VERSION >= v"0.6.0-dev.2467"
         @test readline(path, enc"ISO-2022-JP") == split(s, '\n')[1]
@@ -181,11 +173,11 @@ mktemp() do path, io
     # Test alternative syntaxes for open()
     open(path, enc"ISO-2022-JP", "r") do io
         @test isreadable(io) && !iswritable(io)
-        @test readstring(io) == s
+        @test read(io, String) == s
     end
     open(path, enc"ISO-2022-JP", true, false, false, false, false) do io
         @test isreadable(io) && !iswritable(io)
-        @test readstring(io) == s
+        @test read(io, String) == s
     end
     @test_throws ArgumentError open(path, enc"ISO-2022-JP", "r+")
     @test_throws ArgumentError open(path, enc"ISO-2022-JP", "w+")

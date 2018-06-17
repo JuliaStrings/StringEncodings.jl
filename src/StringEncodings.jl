@@ -2,6 +2,8 @@
 
 module StringEncodings
 
+using Libdl
+
 # Load in `deps.jl`, complaining if it does not exist
 const depsjl_path = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
 if !isfile(depsjl_path)
@@ -16,11 +18,9 @@ function __init__()
 end
 
 using Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
-using Compat: @compat
 
 import Base: close, eachline, eof, flush, isreadable, iswritable,
-             open, readline, readlines, readuntil, show, write
-import Compat: read
+             open, readline, readlines, readuntil, show, write, read
 
 export StringEncoder, StringDecoder, encode, decode, encodings
 export StringEncodingError, OutputBufferError, IConvError
@@ -30,59 +30,59 @@ include("encodings.jl")
 using StringEncodings.Encodings
 export encoding, encodings_list, Encoding, @enc_str
 
-@compat abstract type StringEncodingError end
+abstract type StringEncodingError end
 
 # Specified encodings or the combination are not supported by iconv
-type InvalidEncodingError <: StringEncodingError
+struct InvalidEncodingError <: StringEncodingError
     args::Tuple{String, String}
 end
 InvalidEncodingError(from, to) = InvalidEncodingError((from, to))
 message(::Type{InvalidEncodingError}) = "Conversion from <<1>> to <<2>> not supported by iconv implementation, check that specified encodings are correct"
 
 # Encountered invalid byte sequence
-type InvalidSequenceError <: StringEncodingError
+struct InvalidSequenceError <: StringEncodingError
     args::Tuple{String}
 end
 InvalidSequenceError(seq::Vector{UInt8}) = InvalidSequenceError((bytes2hex(seq),))
 message(::Type{InvalidSequenceError}) = "Byte sequence 0x<<1>> is invalid in source encoding or cannot be represented in target encoding"
 
-type IConvError <: StringEncodingError
+struct IConvError <: StringEncodingError
     args::Tuple{String, Int, String}
 end
 IConvError(func::String) = IConvError((func, errno(), strerror(errno())))
 message(::Type{IConvError}) = "<<1>>: <<2>> (<<3>>)"
 
 # Input ended with incomplete byte sequence
-type IncompleteSequenceError <: StringEncodingError ; end
+struct IncompleteSequenceError <: StringEncodingError ; end
 message(::Type{IncompleteSequenceError}) = "Incomplete byte sequence at end of input"
 
-type OutputBufferError <: StringEncodingError ; end
+struct OutputBufferError <: StringEncodingError ; end
 message(::Type{OutputBufferError}) = "Ran out of space in the output buffer"
 
 function show(io::IO, exc::StringEncodingError)
     str = message(typeof(exc))
     for i = 1:length(exc.args)
-        str = replace(str, "<<$i>>", exc.args[i])
+        str = replace(str, "<<$i>>" => exc.args[i])
     end
     print(io, str)
 end
 
-show{T<:Union{IncompleteSequenceError,OutputBufferError}}(io::IO, exc::T) =
+show(io::IO, exc::T) where {T<:Union{IncompleteSequenceError,OutputBufferError}} =
     print(io, message(T))
 
 
 ## iconv wrappers
 
-function iconv_close(cd::Ptr{Void})
+function iconv_close(cd::Ptr{Nothing})
     if cd != C_NULL
-        ccall((iconv_close_s, libiconv), Cint, (Ptr{Void},), cd) == 0 ||
+        ccall((iconv_close_s, libiconv), Cint, (Ptr{Nothing},), cd) == 0 ||
             throw(IConvError("iconv_close"))
     end
 end
 
 function iconv_open(tocode::String, fromcode::String)
-    p = ccall((iconv_open_s, libiconv), Ptr{Void}, (Cstring, Cstring), tocode, fromcode)
-    if p != Ptr{Void}(-1)
+    p = ccall((iconv_open_s, libiconv), Ptr{Nothing}, (Cstring, Cstring), tocode, fromcode)
+    if p != Ptr{Nothing}(-1)
         return p
     elseif errno() == EINVAL
         throw(InvalidEncodingError(fromcode, tocode))
@@ -96,10 +96,10 @@ end
 
 const BUFSIZE = 100
 
-type StringEncoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
+mutable struct StringEncoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
     stream::S
     closestream::Bool
-    cd::Ptr{Void}
+    cd::Ptr{Nothing}
     inbuf::Vector{UInt8}
     outbuf::Vector{UInt8}
     inbufptr::Ref{Ptr{UInt8}}
@@ -108,10 +108,10 @@ type StringEncoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
     outbytesleft::Ref{Csize_t}
 end
 
-type StringDecoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
+mutable struct StringDecoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
     stream::S
     closestream::Bool
-    cd::Ptr{Void}
+    cd::Ptr{Nothing}
     inbuf::Vector{UInt8}
     outbuf::Vector{UInt8}
     inbufptr::Ref{Ptr{UInt8}}
@@ -135,7 +135,7 @@ function finalize(s::Union{StringEncoder, StringDecoder})
     nothing
 end
 
-function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
+function iconv!(cd::Ptr{Nothing}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
                 inbufptr::Ref{Ptr{UInt8}}, outbufptr::Ref{Ptr{UInt8}},
                 inbytesleft::Ref{Csize_t}, outbytesleft::Ref{Csize_t})
     inbufptr[] = pointer(inbuf)
@@ -145,7 +145,7 @@ function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
     outbytesleft[] = BUFSIZE
 
     ret = ccall((iconv_s, libiconv), Csize_t,
-                (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
+                (Ptr{Nothing}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 cd, inbufptr, inbytesleft, outbufptr, outbytesleft)
 
     if ret == -1 % Csize_t
@@ -157,7 +157,7 @@ function iconv!(cd::Ptr{Void}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
         # Output buffer is full, or sequence is incomplete:
         # copy remaining bytes to the start of the input buffer for next time
         elseif err == E2BIG || err == EINVAL
-            copy!(inbuf, 1, inbuf, inbytesleft_orig-inbytesleft[]+1, inbytesleft[])
+            copyto!(inbuf, 1, inbuf, inbytesleft_orig-inbytesleft[]+1, inbytesleft[])
         elseif err == EILSEQ
             seq = inbuf[(inbytesleft_orig-inbytesleft[]+1):inbytesleft_orig]
             throw(InvalidSequenceError(seq))
@@ -177,7 +177,7 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
     s.outbufptr[] = pointer(s.outbuf)
     s.outbytesleft[] = BUFSIZE
     ret = ccall((iconv_s, libiconv), Csize_t,
-                (Ptr{Void}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
+                (Ptr{Nothing}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 s.cd, C_NULL, C_NULL, s.outbufptr, s.outbytesleft)
 
     if ret == -1 % Csize_t
@@ -208,13 +208,13 @@ stream is necessary to complete the encoding (but does not close `stream`).
 """
 function StringEncoder(stream::IO, to::Encoding, from::Encoding=enc"UTF-8")
     cd = iconv_open(String(to), String(from))
-    inbuf = Vector{UInt8}(BUFSIZE)
-    outbuf = Vector{UInt8}(BUFSIZE)
+    inbuf = Vector{UInt8}(undef, BUFSIZE)
+    outbuf = Vector{UInt8}(undef, BUFSIZE)
     s = StringEncoder{typeof(from), typeof(to), typeof(stream)}(stream, false,
                       cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE))
-    finalizer(s, finalize)
+    finalizer(finalize, s)
     s
 end
 
@@ -223,7 +223,7 @@ StringEncoder(stream::IO, to::AbstractString, from::Encoding=enc"UTF-8") =
 StringEncoder(stream::IO, to::AbstractString, from::AbstractString) =
     StringEncoder(stream, Encoding(to), Encoding(from))
 
-function show{F, T, S}(io::IO, s::StringEncoder{F, T, S})
+function show(io::IO, s::StringEncoder{F, T}) where {F, T}
     from = F()
     to = T()
     print(io, "StringEncoder{$from, $to}($(s.stream))")
@@ -284,13 +284,13 @@ in the input data without raising an error.
 """
 function StringDecoder(stream::IO, from::Encoding, to::Encoding=enc"UTF-8")
     cd = iconv_open(String(to), String(from))
-    inbuf = Vector{UInt8}(BUFSIZE)
-    outbuf = Vector{UInt8}(BUFSIZE)
+    inbuf = Vector{UInt8}(undef, BUFSIZE)
+    outbuf = Vector{UInt8}(undef, BUFSIZE)
     s = StringDecoder{typeof(from), typeof(to), typeof(stream)}(stream, false,
                       cd, inbuf, outbuf,
                       Ref{Ptr{UInt8}}(pointer(inbuf)), Ref{Ptr{UInt8}}(pointer(outbuf)),
                       Ref{Csize_t}(0), Ref{Csize_t}(BUFSIZE), 0)
-    finalizer(s, finalize)
+    finalizer(finalize, s)
     s
 end
 
@@ -299,7 +299,7 @@ StringDecoder(stream::IO, from::AbstractString, to::Encoding=enc"UTF-8") =
 StringDecoder(stream::IO, from::AbstractString, to::AbstractString) =
     StringDecoder(stream, Encoding(from), Encoding(to))
 
-function show{F, T, S}(io::IO, s::StringDecoder{F, T, S})
+function show(io::IO, s::StringDecoder{F, T}) where {F, T}
     from = F()
     to = T()
     print(io, "StringDecoder{$from, $to}($(s.stream))")
@@ -384,11 +384,16 @@ specifying the encoding again.
 open(fname::AbstractString, enc::Encoding, args...) = wrap_stream(open(fname, args...), enc)
 
 function open(fname::AbstractString, enc::Encoding,
-              rd::Bool, wr::Bool, cr::Bool, tr::Bool, ff::Bool)
-    if rd && (wr || ff)
-        throw(ArgumentError("cannot open encoded text files in read and write/append modes at the same time"))
+              read     :: Union{Bool,Nothing} = nothing,
+              write    :: Union{Bool,Nothing} = nothing,
+              create   :: Union{Bool,Nothing} = nothing,
+              truncate :: Union{Bool,Nothing} = nothing,
+              append   :: Union{Bool,Nothing} = nothing)
+    if read == true && (write == true || truncate == true || append == true)
+        throw(ArgumentError("cannot open encoded text files in read and write/truncate/append modes at the same time"))
     end
-    wrap_stream(open(fname, rd, wr, cr, tr, ff), enc)
+    wrap_stream(open(fname, read=read, write=write, create=create, truncate=truncate, append=append),
+                enc)
 end
 
 function open(fname::AbstractString, enc::Encoding, mode::AbstractString)
@@ -398,25 +403,14 @@ function open(fname::AbstractString, enc::Encoding, mode::AbstractString)
     wrap_stream(open(fname, mode), enc)
 end
 
-if isdefined(Base, :readstring)
-    @doc """
-        readstring(stream::IO, enc::Encoding)
-        readstring(filename::AbstractString, enc::Encoding)
+"""
+    read(stream::IO, ::Type{String}, enc::Encoding)
+    read(filename::AbstractString, ::Type{String}, enc::Encoding)
 
-    Methods to read text in character encoding `enc`.
-    """ ->
-    Base.readstring(s::IO, enc::Encoding) = readstring(StringDecoder(s, enc))
-    Base.readstring(filename::AbstractString, enc::Encoding) = open(io->readstring(io, enc), filename)
-else # Compatibility with Julia 0.4
-    @doc """
-        readall(stream::IO, enc::Encoding)
-        readall(filename::AbstractString, enc::Encoding)
-
-    Methods to read text in character encoding `enc`.
-    """ ->
-    Base.readall(s::IO, enc::Encoding) = readall(StringDecoder(s, enc))
-    Base.readall(filename::AbstractString, enc::Encoding) = open(io->readall(io, enc), filename)
-end
+Methods to read text in character encoding `enc`.
+"""
+Base.read(s::IO, ::Type{String}, enc::Encoding) = read(StringDecoder(s, enc), String)
+Base.read(filename::AbstractString, ::Type{String}, enc::Encoding) = open(io->read(io, String, enc), filename)
 
 """
     readline(stream::IO, enc::Encoding)
@@ -445,30 +439,15 @@ Methods to read text in character encoding `enc`.
 readuntil(s::IO, enc::Encoding, delim) = readuntil(StringDecoder(s, enc), delim)
 readuntil(filename::AbstractString, enc::Encoding, delim) = open(io->readuntil(io, enc, delim), filename)
 
-if VERSION >= v"0.6.0-dev.2467"
-    """
-        eachline(stream::IO, enc::Encoding; chomp=true)
-        eachline(filename::AbstractString, enc::Encoding; chomp=true)
-
-    Methods to read text in character encoding `enc`. Decoding is performed on the fly.
-    """
-    eachline(s::IO, enc::Encoding; chomp=true) = eachline(StringDecoder(s, enc); chomp=true)
-    function eachline(filename::AbstractString, enc::Encoding; chomp=true)
-        s = open(filename, enc)
-            EachLine(s, ondone=()->close(s), chomp=chomp)
-    end
-else
-    """
-        eachline(stream::IO, enc::Encoding)
-        eachline(filename::AbstractString, enc::Encoding)
-
-    Methods to read text in character encoding `enc`. Decoding is performed on the fly.
-    """
-    eachline(s::IO, enc::Encoding) = eachline(StringDecoder(s, enc))
-    function eachline(filename::AbstractString, enc::Encoding)
-        s = open(filename, enc)
-            EachLine(s, ()->close(s))
-    end
+"""
+    eachline(stream::IO, enc::Encoding; keep=false)
+    eachline(filename::AbstractString, enc::Encoding; keep=false)
+Methods to read text in character encoding `enc`. Decoding is performed on the fly.
+"""
+eachline(s::IO, enc::Encoding; keep=false) = eachline(StringDecoder(s, enc); keep=false)
+function eachline(filename::AbstractString, enc::Encoding; keep=false)
+    s = open(filename, enc)
+    Base.EachLine(s, ondone=()->close(s), keep=keep)
 end
 
 
@@ -481,11 +460,8 @@ Convert an array of bytes `a` representing text in encoding `enc` to a string of
 By default, a `String` is returned.
 
 `enc` can be specified either as a string or as an `Encoding` object.
-
-Note that some implementations (notably the Windows one) may accept invalid sequences
-in the input data without raising an error.
 """
-function decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::Encoding)
+function decode(::Type{T}, a::Vector{UInt8}, enc::Encoding) where {T<:AbstractString}
     b = IOBuffer(a)
     try
         T(read(StringDecoder(b, enc, encoding(T))))
@@ -494,7 +470,8 @@ function decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::Encoding)
     end
 end
 
-decode{T<:AbstractString}(::Type{T}, a::Vector{UInt8}, enc::AbstractString) = decode(T, a, Encoding(enc))
+decode(::Type{T}, a::Vector{UInt8}, enc::AbstractString) where {T<:AbstractString} =
+    decode(T, a, Encoding(enc))
 
 decode(a::Vector{UInt8}, enc::AbstractString) = decode(String, a, Encoding(enc))
 decode(a::Vector{UInt8}, enc::Union{AbstractString, Encoding}) = decode(String, a, enc)
@@ -517,8 +494,8 @@ encode(s::AbstractString, enc::AbstractString) = encode(s, Encoding(enc))
 
 function test_encoding(enc::String)
     # We assume that an encoding is supported if it's possible to convert from it to UTF-8:
-    cd = ccall((iconv_open_s, libiconv), Ptr{Void}, (Cstring, Cstring), enc, "UTF-8")
-    if cd == Ptr{Void}(-1)
+    cd = ccall((iconv_open_s, libiconv), Ptr{Nothing}, (Cstring, Cstring), enc, "UTF-8")
+    if cd == Ptr{Nothing}(-1)
         return false
     else
         iconv_close(cd)
