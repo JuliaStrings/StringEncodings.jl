@@ -1,3 +1,4 @@
+using Libdl
 # Check for an iconv implementation with the GNU (non-POSIX) behavior:
 # EILSEQ is returned when a sequence cannot be converted to target encoding,
 # instead of succeeding and only returning the number of invalid conversions
@@ -6,10 +7,10 @@
 # Implementations with this behavior include glibc, GNU libiconv (on which Mac
 # OS X's is based) and win_iconv.
 function validate_iconv(lib, iconv_open, iconv_close, iconv)
-    h = Libdl.dlopen_e(lib)
+    h = dlopen_e(lib)
     h == C_NULL && return false
     # Needed to check libc
-    f = Libdl.dlsym_e(h, iconv_open)
+    f = dlsym_e(h, iconv_open)
     f == C_NULL && return false
 
     cd = ccall(f, Ptr{Nothing}, (Cstring, Cstring), "ASCII", "UTF-8")
@@ -21,10 +22,10 @@ function validate_iconv(lib, iconv_open, iconv_close, iconv)
     inbytesleft = Ref{Csize_t}(sizeof(s))
     outbufptr = Ref{Ptr{UInt8}}(pointer(a))
     outbytesleft = Ref{Csize_t}(length(a))
-    ret = ccall(Libdl.dlsym_e(h, iconv), Csize_t,
+    ret = ccall(dlsym_e(h, iconv), Csize_t,
                 (Ptr{Nothing}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 cd, inbufptr, inbytesleft, outbufptr, outbytesleft)
-    ccall(Libdl.dlsym_e(h, iconv_close), Nothing, (Ptr{Nothing},), cd) == -1 && return false
+    ccall(dlsym_e(h, iconv_close), Nothing, (Ptr{Nothing},), cd) == -1 && return false
 
     return ret == -1 % Csize_t && Libc.errno() == Libc.EILSEQ
 end
