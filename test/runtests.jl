@@ -21,7 +21,7 @@ for (s, enc) in (("noël", "ISO-8859-1"),
 end
 
 # Test that attempt to close stream in the middle of incomplete sequence throws
-let s = "a string チャネルパートナーの選択", a = Vector{UInt8}(s)
+let s = "a string チャネルパートナーの選択", a = unsafe_wrap(Vector{UInt8}, s)
     # First, correct version
     p = StringEncoder(IOBuffer(), "UTF-16LE")
     write(p, a)
