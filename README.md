@@ -5,9 +5,6 @@
 [![Coveralls Coverage Status](https://coveralls.io/repos/JuliaStrings/StringEncodings.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaStrings/StringEncodings.jl?branch=master)
 [![Codecov Coverage Status](http://codecov.io/github/JuliaStrings/StringEncodings.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaStrings/StringEncodings.jl?branch=master)
 
-[![Julia 0.6 Status](http://pkg.julialang.org/badges/StringEncodings_0.6.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.6)
-[![Julia 0.7 Status](http://pkg.julialang.org/badges/StringEncodings_0.7.svg)](http://pkg.julialang.org/?pkg=StringEncodings&ver=0.7)
-
 This Julia package provides support for decoding and encoding texts between multiple character encodings. It is currently based on the iconv interface, and supports all major platforms using either the native iconv support or [GNU libiconv](https://www.gnu.org/software/libiconv/). In the future, native Julia support for major encodings will be added.
 
 ## Encoding and Decoding Strings
