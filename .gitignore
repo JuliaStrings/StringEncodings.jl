@@ -7,3 +7,4 @@ deps/src
 deps/usr
 deps/deps.jl
 deps/build.log
+MANIFEST.TOML
