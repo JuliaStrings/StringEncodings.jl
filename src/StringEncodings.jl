@@ -279,7 +279,7 @@ stream does not close `stream`.
 
 `to` and `from` can be specified either as a string or as an `Encoding` object.
 
-Note that some implementations (notably the Windows one) may accept invalid sequences
+Note that some implementations may accept invalid sequences
 in the input data without raising an error.
 """
 function StringDecoder(stream::IO, from::Encoding, to::Encoding=enc"UTF-8")
