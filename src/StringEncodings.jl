@@ -202,7 +202,7 @@ end
 
 Returns a new write-only I/O stream, which converts any text in the encoding `from`
 written to it into text in the encoding `to` written to `stream`. Calling `close` on the
-stream is necessary to complete the encoding (but does not close `stream`).
+returned object is necessary to complete the encoding (but it does not close `stream`).
 
 `to` and `from` can be specified either as a string or as an `Encoding` object.
 """
@@ -404,13 +404,26 @@ function open(fname::AbstractString, enc::Encoding, mode::AbstractString)
 end
 
 """
+    read(stream::IO, [nb::Integer,] enc::Encoding)
+    read(filename::AbstractString, [nb::Integer,] enc::Encoding)
     read(stream::IO, ::Type{String}, enc::Encoding)
     read(filename::AbstractString, ::Type{String}, enc::Encoding)
 
-Methods to read text in character encoding `enc`.
+Methods to read text in character encoding `enc`. See documentation for corresponding methods
+without the `enc` argument for details.
 """
-Base.read(s::IO, ::Type{String}, enc::Encoding) = read(StringDecoder(s, enc), String)
-Base.read(filename::AbstractString, ::Type{String}, enc::Encoding) = open(io->read(io, String, enc), filename)
+Base.read(s::IO, enc::Encoding) =
+    read(StringDecoder(s, enc))
+Base.read(filename::AbstractString, enc::Encoding) =
+    open(io->read(io, enc), filename)
+Base.read(s::IO, nb::Integer, enc::Encoding) =
+    read(StringDecoder(s, enc), nb)
+Base.read(filename::AbstractString, nb::Integer, enc::Encoding) =
+    open(io->read(io, nb, enc), filename)
+Base.read(s::IO, ::Type{String}, enc::Encoding) =
+    read(StringDecoder(s, enc), String)
+Base.read(filename::AbstractString, ::Type{String}, enc::Encoding) =
+    open(io->read(io, String, enc), filename)
 
 """
     readline(stream::IO, enc::Encoding; keep::Bool=false)

@@ -141,6 +141,18 @@ mktemp() do path, io
         write(io, s)
     end
 
+    @test String(read(path, enc"ISO-2022-JP")) == s
+    @test String(open(io->read(io, enc"ISO-2022-JP"), path)) == s
+    @test String(open(io->read(io), path, enc"ISO-2022-JP")) == s
+
+    @test String(read(path, 1000, enc"ISO-2022-JP")) == s
+    @test String(open(io->read(io, 1000, enc"ISO-2022-JP"), path)) == s
+    @test String(open(io->read(io, 1000), path, enc"ISO-2022-JP")) == s
+
+    @test String(read(path, 10, enc"ISO-2022-JP")) == first(s, 10)
+    @test String(open(io->read(io, 10, enc"ISO-2022-JP"), path)) == first(s, 10)
+    @test String(open(io->read(io, 10), path, enc"ISO-2022-JP")) == first(s, 10)
+
     @test read(path, String, enc"ISO-2022-JP") == s
     @test open(io->read(io, String, enc"ISO-2022-JP"), path) == s
     @test open(io->read(io, String), path, enc"ISO-2022-JP") == s
