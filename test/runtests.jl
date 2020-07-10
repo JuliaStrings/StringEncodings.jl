@@ -141,6 +141,8 @@ mktemp() do path, io
         write(io, s)
     end
 
+    nc = ncodeunits(first(s, 90))
+
     @test String(read(path, enc"ISO-2022-JP")) == s
     @test String(open(io->read(io, enc"ISO-2022-JP"), path)) == s
     @test String(open(io->read(io), path, enc"ISO-2022-JP")) == s
@@ -149,13 +151,47 @@ mktemp() do path, io
     @test String(open(io->read(io, 1000, enc"ISO-2022-JP"), path)) == s
     @test String(open(io->read(io, 1000), path, enc"ISO-2022-JP")) == s
 
-    @test String(read(path, 10, enc"ISO-2022-JP")) == first(s, 10)
-    @test String(open(io->read(io, 10, enc"ISO-2022-JP"), path)) == first(s, 10)
-    @test String(open(io->read(io, 10), path, enc"ISO-2022-JP")) == first(s, 10)
+    @test String(read(path, nc, enc"ISO-2022-JP")) == first(s, nc)
+    @test String(open(io->read(io, nc, enc"ISO-2022-JP"), path)) == first(s, nc)
+    @test String(open(io->read(io, nc), path, enc"ISO-2022-JP")) == first(s, nc)
 
     @test read(path, String, enc"ISO-2022-JP") == s
     @test open(io->read(io, String, enc"ISO-2022-JP"), path) == s
     @test open(io->read(io, String), path, enc"ISO-2022-JP") == s
+
+    b = zeros(UInt8, nc)
+    @test open(io->read!(io, b), path, enc"ISO-2022-JP") === b
+    @test String(b) == first(s, 90)
+
+    b = zeros(UInt8, nc)
+    @test open(io->readbytes!(io, b), path, enc"ISO-2022-JP") == ncodeunits(s)
+    @test String(b) == s
+
+    b = zeros(UInt8, 1000)
+    @test open(io->readbytes!(io, b), path, enc"ISO-2022-JP") == ncodeunits(s)
+    @test length(b) == 1000
+    @test String(b[1:ncodeunits(s)]) == s
+
+    b = UInt8[]
+    @test open(io->readbytes!(io, b), path, enc"ISO-2022-JP") == 0
+    @test length(b) == 0
+
+    b = zeros(UInt8, nc)
+    @test open(io->readbytes!(io, b, nc), path, enc"ISO-2022-JP") == nc
+    @test String(b) == first(s, 90)
+
+    b = zeros(UInt8, 1000)
+    @test open(io->readbytes!(io, b, nc), path, enc"ISO-2022-JP") == nc
+    @test length(b) == 1000
+    @test String(b[1:nc]) == first(s, 90)
+
+    b = UInt8[]
+    @test open(io->readbytes!(io, b, nc), path, enc"ISO-2022-JP") == nc
+    @test String(b) == first(s, 90)
+
+    b = UInt8[]
+    open(io->while !eof(io); push!(b, read(io, UInt8)) end, path, enc"ISO-2022-JP")
+    @test String(b) == s
 
     @test readuntil(path, enc"ISO-2022-JP", '\0') == "a string "
     @test open(io->readuntil(io, enc"ISO-2022-JP", '\0'), path) == "a string "

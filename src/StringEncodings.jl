@@ -20,7 +20,7 @@ end
 using Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 
 import Base: close, eachline, eof, flush, isreadable, iswritable,
-             open, readline, readlines, readuntil, show, write, read
+             open, read, readbytes!, readline, readlines, readuntil, show, write
 
 export StringEncoder, StringDecoder, encode, decode, encodings
 export StringEncodingError, OutputBufferError, IConvError
@@ -94,7 +94,7 @@ end
 
 ## StringEncoder and StringDecoder common functions
 
-const BUFSIZE = 100
+const BUFSIZE = 200
 
 mutable struct StringEncoder{F<:Encoding, T<:Encoding, S<:IO} <: IO
     stream::S
@@ -318,7 +318,10 @@ function fill_buffer!(s::StringDecoder)
         return i
     end
 
-    s.inbytesleft[] += readbytes!(s.stream, view(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE))
+    # TODO: use a SubArray once readbytes! performance is fixed (JuliaLang/julia#36607):
+    # inbuf_view = view(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE)
+    inbuf_view = unsafe_wrap(Array, pointer(s.inbuf, s.inbytesleft[]+1), BUFSIZE)
+    s.inbytesleft[] += readbytes!(s.stream, inbuf_view)
     iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
 end
 
@@ -328,7 +331,7 @@ end
 #    data contains only state control sequences which may be converted to nothing)
 # 3) if not, reset iconv to initial state, which may generate data
 function eof(s::StringDecoder)
-    length(s.outbuf) - s.outbytesleft[] == s.skip &&
+    BUFSIZE - s.outbytesleft[] == s.skip &&
         fill_buffer!(s) == 0 &&
         iconv_reset!(s) == 0
 end
@@ -401,6 +404,31 @@ function open(fname::AbstractString, enc::Encoding, mode::AbstractString)
         throw(ArgumentError("cannot open encoded text files in read and write/append modes at the same time"))
     end
     wrap_stream(open(fname, mode), enc)
+end
+
+# optimized method adapted from Base but reading as many bytes
+# as the buffer contains on each iteration rather than a single one,
+# which increases performance dramatically
+function readbytes!(s::StringDecoder, b::AbstractArray{UInt8}, nb=length(b))
+    Base.require_one_based_indexing(b)
+    olb = lb = length(b)
+    nr = 0
+    i = 0
+    while nr < nb && !eof(s)
+        nc = min(nb-nr, BUFSIZE - s.outbytesleft[])
+        i += 1
+        if nr+nc > lb
+            lb = (nr+nc) * 2
+            resize!(b, lb)
+        end
+        copyto!(b, nr+1, s.outbuf, s.skip+1, nc)
+        s.skip += nc
+        nr += nc
+    end
+    if lb > olb
+        resize!(b, nr) # shrink to just contain input data if was resized
+    end
+    return nr
 end
 
 """
