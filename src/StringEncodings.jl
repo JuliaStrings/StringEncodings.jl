@@ -410,7 +410,6 @@ end
 # as the buffer contains on each iteration rather than a single one,
 # which increases performance dramatically
 function readbytes!(s::StringDecoder, b::AbstractArray{UInt8}, nb=length(b))
-    Base.require_one_based_indexing(b)
     olb = lb = length(b)
     nr = 0
     i = 0
@@ -421,7 +420,7 @@ function readbytes!(s::StringDecoder, b::AbstractArray{UInt8}, nb=length(b))
             lb = (nr+nc) * 2
             resize!(b, lb)
         end
-        copyto!(b, nr+1, s.outbuf, s.skip+1, nc)
+        copyto!(b, firstindex(b)+nr, s.outbuf, s.skip+1, nc)
         s.skip += nc
         nr += nc
     end
