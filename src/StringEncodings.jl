@@ -318,9 +318,12 @@ function fill_buffer!(s::StringDecoder)
         return i
     end
 
-    # TODO: use a SubArray once readbytes! performance is fixed (JuliaLang/julia#36607):
-    # inbuf_view = view(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE)
-    inbuf_view = unsafe_wrap(Array, pointer(s.inbuf, s.inbytesleft[]+1), BUFSIZE)
+    # readbytes! performance with SubArray was improved by JuliaLang/julia#36607
+    @static if VERSION >= v"1.6.0-DEV.438"
+        inbuf_view = view(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE)
+    else
+        inbuf_view = unsafe_wrap(Array, pointer(s.inbuf, s.inbytesleft[]+1), BUFSIZE)
+    end
     s.inbytesleft[] += readbytes!(s.stream, inbuf_view)
     iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
 end
@@ -412,10 +415,8 @@ end
 function readbytes!(s::StringDecoder, b::AbstractArray{UInt8}, nb=length(b))
     olb = lb = length(b)
     nr = 0
-    i = 0
     while nr < nb && !eof(s)
         nc = min(nb-nr, BUFSIZE - s.outbytesleft[])
-        i += 1
         if nr+nc > lb
             lb = (nr+nc) * 2
             resize!(b, lb)
