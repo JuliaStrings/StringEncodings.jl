@@ -322,7 +322,7 @@ function fill_buffer!(s::StringDecoder)
     @static if VERSION >= v"1.6.0-DEV.438"
         inbuf_view = view(s.inbuf, Int(s.inbytesleft[]+1):BUFSIZE)
     else
-        inbuf_view = unsafe_wrap(Array, pointer(s.inbuf, s.inbytesleft[]+1), BUFSIZE)
+        inbuf_view = unsafe_wrap(Array, pointer(s.inbuf, s.inbytesleft[]+1), BUFSIZE-s.inbytesleft[])
     end
     s.inbytesleft[] += readbytes!(s.stream, inbuf_view)
     iconv!(s.cd, s.inbuf, s.outbuf, s.inbufptr, s.outbufptr, s.inbytesleft, s.outbytesleft)
