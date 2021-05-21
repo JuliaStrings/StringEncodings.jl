@@ -2,20 +2,7 @@
 
 module StringEncodings
 
-using Libdl
-
-# Load in `deps.jl`, complaining if it does not exist
-const depsjl_path = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
-if !isfile(depsjl_path)
-    error("iconv not installed properly, run Pkg.build(\"StringEncodings\"), restart Julia and try again")
-end
-include(depsjl_path)
-
-# Module initialization function
-function __init__()
-    # Always check dependencies from `deps.jl`
-    check_deps()
-end
+using Libiconv_jll
 
 using Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 
@@ -75,13 +62,13 @@ show(io::IO, exc::T) where {T<:Union{IncompleteSequenceError,OutputBufferError}}
 
 function iconv_close(cd::Ptr{Nothing})
     if cd != C_NULL
-        ccall((iconv_close_s, libiconv), Cint, (Ptr{Nothing},), cd) == 0 ||
+        ccall((:libiconv_close, libiconv), Cint, (Ptr{Nothing},), cd) == 0 ||
             throw(IConvError("iconv_close"))
     end
 end
 
 function iconv_open(tocode::String, fromcode::String)
-    p = ccall((iconv_open_s, libiconv), Ptr{Nothing}, (Cstring, Cstring), tocode, fromcode)
+    p = ccall((:libiconv_open, libiconv), Ptr{Nothing}, (Cstring, Cstring), tocode, fromcode)
     if p != Ptr{Nothing}(-1)
         return p
     elseif errno() == EINVAL
@@ -144,7 +131,7 @@ function iconv!(cd::Ptr{Nothing}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
     inbytesleft_orig = inbytesleft[]
     outbytesleft[] = BUFSIZE
 
-    ret = ccall((iconv_s, libiconv), Csize_t,
+    ret = ccall((:libiconv, libiconv), Csize_t,
                 (Ptr{Nothing}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 cd, inbufptr, inbytesleft, outbufptr, outbytesleft)
 
@@ -176,7 +163,7 @@ function iconv_reset!(s::Union{StringEncoder, StringDecoder})
 
     s.outbufptr[] = pointer(s.outbuf)
     s.outbytesleft[] = BUFSIZE
-    ret = ccall((iconv_s, libiconv), Csize_t,
+    ret = ccall((:libiconv, libiconv), Csize_t,
                 (Ptr{Nothing}, Ptr{Ptr{UInt8}}, Ref{Csize_t}, Ptr{Ptr{UInt8}}, Ref{Csize_t}),
                 s.cd, C_NULL, C_NULL, s.outbufptr, s.outbytesleft)
 
@@ -278,9 +265,6 @@ read from `stream` into text in the encoding `to`.  Calling `close` on the
 stream does not close `stream`.
 
 `to` and `from` can be specified either as a string or as an `Encoding` object.
-
-Note that some implementations may accept invalid sequences
-in the input data without raising an error.
 """
 function StringDecoder(stream::IO, from::Encoding, to::Encoding=enc"UTF-8")
     cd = iconv_open(String(to), String(from))
@@ -542,7 +526,7 @@ encode(s::AbstractString, enc::AbstractString) = encode(s, Encoding(enc))
 
 function test_encoding(enc::String)
     # We assume that an encoding is supported if it's possible to convert from it to UTF-8:
-    cd = ccall((iconv_open_s, libiconv), Ptr{Nothing}, (Cstring, Cstring), enc, "UTF-8")
+    cd = ccall((:libiconv_open, libiconv), Ptr{Nothing}, (Cstring, Cstring), enc, "UTF-8")
     if cd == Ptr{Nothing}(-1)
         return false
     else
