@@ -539,15 +539,13 @@ end
     encodings()
 
 List all encodings supported by `encode`, `decode`, `StringEncoder` and `StringDecoder`
-(i.e. by the current iconv implementation).
+(i.e. by GNU libiconv).
 
 Note that encodings typically appear several times under different names.
 In addition to the encodings returned by this function, the empty string (i.e. `""`)
 is equivalent to the encoding of the current locale.
 
-Some implementations may support even more encodings: this can be checked by attempting
-a conversion. In theory, it is not guaranteed that all conversions between all pairs of encodings
-are possible; but this is the case with all reasonable implementations.
+Even more encodings may be supported: this can be checked by attempting a conversion.
 """
 function encodings()
     filter(test_encoding, encodings_list)
