@@ -1,11 +1,9 @@
 # StringEncodings
 
-[![Travis CI Build Status](https://travis-ci.org/JuliaStrings/StringEncodings.jl.svg?branch=master)](https://travis-ci.org/JuliaStrings/StringEncodings.jl)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/3gslhfg91isldnvq?svg=true)](https://ci.appveyor.com/project/nalimilan/stringencodings-jl)
-[![Coveralls Coverage Status](https://coveralls.io/repos/JuliaStrings/StringEncodings.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaStrings/StringEncodings.jl?branch=master)
+[![Build status](https://github.com/JuliaStrings/StringEncodings.jl/workflows/CI/badge.svg)](https://github.com/JuliaStrings/StringEncodings.jl/actions?query=workflow%3ACI+branch%3Amaster)
 [![Codecov Coverage Status](http://codecov.io/github/JuliaStrings/StringEncodings.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaStrings/StringEncodings.jl?branch=master)
 
-This Julia package provides support for decoding and encoding texts between multiple character encodings. It is currently based on the iconv interface, and supports all major platforms using either the native iconv support or [GNU libiconv](https://www.gnu.org/software/libiconv/). In the future, native Julia support for major encodings will be added.
+This Julia package provides support for decoding and encoding texts between multiple character encodings. It is currently based on the iconv interface, and supports all major platforms using [GNU libiconv](https://www.gnu.org/software/libiconv/). In the future, native Julia support for major encodings will be added.
 
 ## Encoding and Decoding Strings
 *Encoding* a refers to the process of converting a string (of any `AbstractString` type) to a sequence of bytes represented as a `Vector{UInt8}`. *Decoding* refers to the inverse process.
@@ -153,7 +151,3 @@ julia> read(s, String) # Decoding happens automatically here
 Do not forget to call `close` on `StringEncoder` and `StringDecoder` objects to finish the encoding process. For `StringEncoder`, this function calls `flush`, which writes any characters still in the buffer, and possibly some control sequences (for stateful encodings). For both `StringEncoder` and `StringDecoder`, `close` checks that there are no incomplete sequences left in the input stream, and raise an `IncompleteSequenceError` if that's the case. It will also free iconv resources immediately, instead of waiting for garbage collection.
 
 Conversion currently raises an error if an invalid byte sequence is encountered in the input, or if some characters cannot be represented in the target enconding. It is not yet possible to ignore such characters or to replace them with a placeholder.
-
-## Notes on Installation on Linux OS
-
-Most Linux distributions provide `iconv` functionalities as part of the base operating system library `glibc`. In normal circumstances, no additional installation of `libiconv` should be required. If you observe such a behavior on your operating system, file an issue with OS details.

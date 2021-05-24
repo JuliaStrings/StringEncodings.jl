@@ -1,10 +1,4 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
-deps/builds
-deps/downloads
-deps/src
-deps/usr
-deps/deps.jl
-deps/build.log
-MANIFEST.TOML
+Manifest.toml
