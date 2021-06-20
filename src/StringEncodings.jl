@@ -236,6 +236,7 @@ end
 function close(s::StringEncoder)
     flush(s)
     iconv_reset!(s)
+    write(s.stream, view(s.outbuf, 1:(BUFSIZE - Int(s.outbytesleft[]))))
     # Make sure C memory/resources are returned
     finalize(s)
     if s.closestream
@@ -518,7 +519,7 @@ function encode(s::AbstractString, enc::Encoding)
     b = IOBuffer()
     p = StringEncoder(b, enc, encoding(typeof(s)))
     write(p, s)
-    flush(p)
+    close(p)
     take!(b)
 end
 
