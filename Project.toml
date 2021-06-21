@@ -1,6 +1,6 @@
 name = "StringEncodings"
 uuid = "69024149-9ee7-55f6-a4c4-859efe599b68"
-version = "0.3.4"
+version = "0.3.5"
 
 [deps]
 Libiconv_jll = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
