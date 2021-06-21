@@ -234,6 +234,18 @@ mktemp() do path, io
     @test_throws ArgumentError open(path, enc"ISO-2022-JP", true, false, false, false, true)
 end
 
+@testset "Bytes written only when closing with Shift JIS (issue #49)" begin
+    for enc in ("SHIFT_JIS", "SHIFT_JISX0213")
+        @test encode("ク", enc) == [0x83, 0x4e]
+
+        b = IOBuffer()
+        s = StringEncoder(b, enc)
+        write(s, "ク")
+        close(s)
+        @test take!(b) == [0x83, 0x4e]
+    end
+end
+
 
 ## Test encodings support
 b = IOBuffer()
