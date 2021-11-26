@@ -217,7 +217,6 @@ function show(io::IO, s::StringEncoder{F, T}) where {F, T}
 end
 
 # Flush input buffer and convert it into output buffer
-# Returns the number of bytes written to output buffer
 function flush(s::StringEncoder)
     s.cd == C_NULL && return s
 
