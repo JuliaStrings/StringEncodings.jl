@@ -246,6 +246,30 @@ end
     end
 end
 
+@testset "readavailable and bytesavailable" begin
+    s = "a string チャネルパートナーの選択"^10
+    b = IOBuffer(encode(s, "UTF-16LE"))
+    p = StringDecoder(b, "UTF-16LE")
+    @test read(p, String) == s
+
+    b = IOBuffer(encode(s, "UTF-16LE"))
+    p = StringDecoder(b, "UTF-16LE")
+    @test bytesavailable(p) == 0
+    @test read(p, UInt8) === 0x61
+    @test bytesavailable(p) == 197
+    @test String(readavailable(p)) == s[2:196]
+    @test bytesavailable(p) == 0
+    @test String(readavailable(p)) == s[199:394]
+    @test bytesavailable(p) == 0
+    @test String(readavailable(p)) == s[397:end]
+    @test isempty(readavailable(p))
+    @test bytesavailable(p) == 0
+    @test eof(p)
+    close(p)
+    @test bytesavailable(p) == 0
+    @test_throws ArgumentError readavailable(p)
+end
+
 
 ## Test encodings support
 b = IOBuffer()
