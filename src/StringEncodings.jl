@@ -6,8 +6,9 @@ using Libiconv_jll
 
 using Base.Libc: errno, strerror, E2BIG, EINVAL, EILSEQ
 
-import Base: close, eachline, eof, flush, isreadable, iswritable,
-             open, read, readbytes!, readline, readlines, readuntil, show, write
+import Base: bytesavailable, close, eachline, eof, flush, isreadable, iswritable,
+             open, read, readavailable, readbytes!, readline, readlines,
+             readuntil, show, write
 
 export StringEncoder, StringDecoder, encode, decode, encodings
 export StringEncodingError, OutputBufferError, IConvError
@@ -337,6 +338,18 @@ end
 function read(s::StringDecoder, ::Type{UInt8})
     s.cd == C_NULL && throw(ArgumentError("cannot read from closed StringDecoder"))
     eof(s) ? throw(EOFError()) : s.outbuf[s.skip+=1]
+end
+
+bytesavailable(s::StringDecoder) =
+    Int(BUFSIZE - s.outbytesleft[] - s.skip)
+
+function readavailable(s::StringDecoder)
+    s.cd == C_NULL && throw(ArgumentError("cannot read from closed StringDecoder"))
+    eof(s) # Load more data into buffer if it is empty
+    ob = s.outbytesleft[]
+    res = s.outbuf[(s.skip+1):(BUFSIZE - ob)]
+    s.skip = BUFSIZE - ob
+    return res
 end
 
 isreadable(s::StringDecoder) = s.cd != C_NULL && isreadable(s.stream)
