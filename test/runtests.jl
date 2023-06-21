@@ -275,7 +275,7 @@ end
     s = "Bendaña"
     enc = "Windows-1252"
     se = "Benda\xf1a"
-    @test encode(@view(s[1:6]), enc) == encode(s[1:6], enc) == codeunits(se)[1:6]
+    @test encode(SubString(s, 1:6), enc) == encode(s[1:6], enc) == codeunits(se)[1:6]
     @test s == decode(se, enc) == decode(codeunits(se), enc) == decode(collect(codeunits(se)), enc)
 end
 
