@@ -275,6 +275,7 @@ end
     s = "Bendaña"
     enc = "Windows-1252"
     se = "Benda\xf1a"
+    @test encode(Test.GenericString(s), enc) == codeunits(se)
     @test encode(SubString(s, 1:6), enc) == encode(s[1:6], enc) == codeunits(se)[1:6]
     @test s == decode(se, enc) == decode(codeunits(se), enc) == decode(collect(codeunits(se)), enc)
     @test s[1:6] == decode(@view(collect(codeunits(se))[1:6]), enc)

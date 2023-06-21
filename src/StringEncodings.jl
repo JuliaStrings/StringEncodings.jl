@@ -530,7 +530,6 @@ decode(::Type{T}, a::ByteString, enc::Encoding) where {T<:AbstractString} =
 decode(::Type{T}, a::ByteVecOrString, enc::AbstractString) where {T<:AbstractString} =
     decode(T, a, Encoding(enc))
 
-decode(a::ByteVecOrString, enc::AbstractString) = decode(String, a, Encoding(enc))
 decode(a::ByteVecOrString, enc::Union{AbstractString, Encoding}) = decode(String, a, enc)
 
 """
