@@ -23,6 +23,7 @@ print(io::IO, ::Encoding{enc}) where {enc} = print(io, enc)
 
 ## Get the encoding used by a string type
 encoding(::Type{String})  = enc"UTF-8"
+encoding(::Type{SubString{String}})  = enc"UTF-8"
 
 encodings_list = ["1026", "1046", "1047", "10646-1:1993", "10646-1:1993/UCS4",
                   "437", "500", "500V1", "850", "851", "852", "855", "856", "857",
