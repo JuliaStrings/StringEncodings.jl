@@ -24,7 +24,7 @@ abstract type StringEncodingError end
 const ByteVector= Union{Vector{UInt8},
                         Base.FastContiguousSubArray{UInt8,1,<:Array{UInt8,1}},
                         Base.CodeUnits{UInt8, String}, Base.CodeUnits{UInt8, SubString{String}}}
-const ByteString = Union{ByteVector,String,SubString{String}}
+const ByteString = Union{String,SubString{String}}
 const ByteVecOrString = Union{ByteVector,ByteString}
 
 # Specified encodings or the combination are not supported by iconv
