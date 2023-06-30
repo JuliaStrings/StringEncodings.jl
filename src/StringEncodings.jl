@@ -25,7 +25,6 @@ const ByteVector= Union{Vector{UInt8},
                         Base.FastContiguousSubArray{UInt8,1,<:Array{UInt8,1}},
                         Base.CodeUnits{UInt8, String}, Base.CodeUnits{UInt8, SubString{String}}}
 const ByteString = Union{String,SubString{String}}
-const ByteVecOrString = Union{ByteVector,ByteString}
 
 # Specified encodings or the combination are not supported by iconv
 struct InvalidEncodingError <: StringEncodingError
@@ -506,15 +505,18 @@ end
 ## Functions to encode/decode strings
 
 """
-    decode([T,] a::Union{String,Vector{UInt8}}, enc)
+    decode([T,] a::AbstractVector{UInt8}, enc)
 
-Convert an array (or string) of bytes `a` representing text in encoding `enc` to a string of type `T`.
+Convert an array of bytes `a` representing text in encoding `enc` to a string of type `T`.
 By default, a `String` is returned.
 
+To `decode` an `s::String` of data in non-UTF-8 encoding, use
+`decode(codeunits(s), enc)` to act on the underlying byte array.
+
 `enc` can be specified either as a string or as an `Encoding` object.
-The input data `a` can be a `Vector{UInt8}` of bytes, a `String` (with
-bytes in the specified encoding, not necessarily UTF-8), or contiguous
-subarrays/substrings/codeunits thereof.
+The input data `a` can be a `Vector{UInt8}` of bytes, a contiguous
+subarray thereof, or the `codeunits` of a `String` (or substring
+thereof).
 """
 function decode(::Type{T}, a::ByteVector, enc::Encoding) where {T<:AbstractString}
     b = IOBuffer(a)
@@ -524,13 +526,11 @@ function decode(::Type{T}, a::ByteVector, enc::Encoding) where {T<:AbstractStrin
         close(b)
     end
 end
-decode(::Type{T}, a::ByteString, enc::Encoding) where {T<:AbstractString} =
-    decode(T, codeunits(a), enc)
 
-decode(::Type{T}, a::ByteVecOrString, enc::AbstractString) where {T<:AbstractString} =
+decode(::Type{T}, a::ByteVector, enc::AbstractString) where {T<:AbstractString} =
     decode(T, a, Encoding(enc))
 
-decode(a::ByteVecOrString, enc::Union{AbstractString, Encoding}) = decode(String, a, enc)
+decode(a::ByteVector, enc::Union{AbstractString, Encoding}) = decode(String, a, enc)
 
 """
     encode(s::AbstractString, enc)
