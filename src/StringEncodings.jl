@@ -20,6 +20,12 @@ export encoding, encodings_list, Encoding, @enc_str
 
 abstract type StringEncodingError end
 
+# contiguous 1d byte arrays compatible with C `unsigned char *` API
+const ByteVector= Union{Vector{UInt8},
+                        Base.FastContiguousSubArray{UInt8,1,<:Array{UInt8,1}},
+                        Base.CodeUnits{UInt8, String}, Base.CodeUnits{UInt8, SubString{String}}}
+const ByteString = Union{String,SubString{String}}
+
 # Specified encodings or the combination are not supported by iconv
 struct InvalidEncodingError <: StringEncodingError
     args::Tuple{String, String}
@@ -31,7 +37,7 @@ message(::Type{InvalidEncodingError}) = "Conversion from <<1>> to <<2>> not supp
 struct InvalidSequenceError <: StringEncodingError
     args::Tuple{String}
 end
-InvalidSequenceError(seq::Vector{UInt8}) = InvalidSequenceError((bytes2hex(seq),))
+InvalidSequenceError(seq::AbstractVector{UInt8}) = InvalidSequenceError((bytes2hex(seq),))
 message(::Type{InvalidSequenceError}) = "Byte sequence 0x<<1>> is invalid in source encoding or cannot be represented in target encoding"
 
 struct IConvError <: StringEncodingError
@@ -123,7 +129,7 @@ function finalize(s::Union{StringEncoder, StringDecoder})
     nothing
 end
 
-function iconv!(cd::Ptr{Nothing}, inbuf::Vector{UInt8}, outbuf::Vector{UInt8},
+function iconv!(cd::Ptr{Nothing}, inbuf::ByteVector, outbuf::ByteVector,
                 inbufptr::Ref{Ptr{UInt8}}, outbufptr::Ref{Ptr{UInt8}},
                 inbytesleft::Ref{Csize_t}, outbytesleft::Ref{Csize_t})
     inbufptr[] = pointer(inbuf)
@@ -499,14 +505,20 @@ end
 ## Functions to encode/decode strings
 
 """
-    decode([T,] a::Vector{UInt8}, enc)
+    decode([T,] a::AbstractVector{UInt8}, enc)
 
 Convert an array of bytes `a` representing text in encoding `enc` to a string of type `T`.
 By default, a `String` is returned.
 
+To `decode` an `s::String` of data in non-UTF-8 encoding, use
+`decode(codeunits(s), enc)` to act on the underlying byte array.
+
 `enc` can be specified either as a string or as an `Encoding` object.
+The input data `a` can be a `Vector{UInt8}` of bytes, a contiguous
+subarray thereof, or the `codeunits` of a `String` (or substring
+thereof).
 """
-function decode(::Type{T}, a::Vector{UInt8}, enc::Encoding) where {T<:AbstractString}
+function decode(::Type{T}, a::ByteVector, enc::Encoding) where {T<:AbstractString}
     b = IOBuffer(a)
     try
         T(read(StringDecoder(b, enc, encoding(T))))
@@ -515,11 +527,10 @@ function decode(::Type{T}, a::Vector{UInt8}, enc::Encoding) where {T<:AbstractSt
     end
 end
 
-decode(::Type{T}, a::Vector{UInt8}, enc::AbstractString) where {T<:AbstractString} =
+decode(::Type{T}, a::ByteVector, enc::AbstractString) where {T<:AbstractString} =
     decode(T, a, Encoding(enc))
 
-decode(a::Vector{UInt8}, enc::AbstractString) = decode(String, a, Encoding(enc))
-decode(a::Vector{UInt8}, enc::Union{AbstractString, Encoding}) = decode(String, a, enc)
+decode(a::ByteVector, enc::Union{AbstractString, Encoding}) = decode(String, a, enc)
 
 """
     encode(s::AbstractString, enc)
@@ -527,7 +538,8 @@ decode(a::Vector{UInt8}, enc::Union{AbstractString, Encoding}) = decode(String, 
 Convert string `s` to an array of bytes representing text in encoding `enc`.
 `enc` can be specified either as a string or as an `Encoding` object.
 """
-function encode(s::AbstractString, enc::Encoding)
+encode(s::AbstractString, enc::Encoding) = encode(String(s), enc)
+function encode(s::ByteString, enc::Encoding)
     b = IOBuffer()
     p = StringEncoder(b, enc, encoding(typeof(s)))
     write(p, s)
