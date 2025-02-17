@@ -261,6 +261,22 @@ function write(s::StringEncoder, x::UInt8)
     1
 end
 
+# Optimized IO implementation
+function Base.unsafe_write(s::StringEncoder, p::Ptr{UInt8}, n::UInt)
+    bytes = unsafe_wrap(Array, p, n)
+    written = 0
+    while n > 0
+        if s.inbytesleft[] >= length(s.inbuf)
+            flush(s)
+        end
+        chunksize = min(n, length(s.inbuf) - s.inbytesleft[])
+        copyto!(s.inbuf, s.inbytesleft[]+1, bytes, written+1, chunksize)
+        s.inbytesleft[] += chunksize
+        written += chunksize
+        n -= chunksize
+    end
+    return written
+end
 
 ## StringDecoder
 
@@ -432,6 +448,12 @@ function readbytes!(s::StringDecoder, b::AbstractArray{UInt8}, nb=length(b))
         resize!(b, nr) # shrink to just contain input data if was resized
     end
     return nr
+end
+
+# Optimized IO implementation
+function Base.unsafe_read(s::StringDecoder, p::Ptr{UInt8}, n::UInt)
+    readbytes!(s, unsafe_wrap(Array, p, n))
+    nothing
 end
 
 """
